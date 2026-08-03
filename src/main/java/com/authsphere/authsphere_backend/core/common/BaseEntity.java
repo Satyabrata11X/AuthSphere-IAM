@@ -1,10 +1,7 @@
 package com.authsphere.authsphere_backend.core.common;
 
 
-import jakarta.persistence.EntityListeners;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,10 +22,10 @@ import java.util.UUID;
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 
-public class BaseEntity {
+public abstract class BaseEntity {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @CreatedDate
