@@ -18,4 +18,15 @@ public class GlobalExceptionHandler {
                 .message(exception.getMessage())
                 .build();
     }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ApiResponse<Void> handleInvalidCredentialsException(
+            InvalidCredentialsException exception) {
+
+        return ApiResponse.<Void>builder()
+                .success(false)
+                .status(ApiStatus.ERROR)
+                .message(exception.getMessage())
+                .build();
+    }
 }

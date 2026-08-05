@@ -3,6 +3,7 @@ package com.authsphere.authsphere_backend.identity.auth.service.impl;
 import com.authsphere.authsphere_backend.core.common.ApiResponse;
 import com.authsphere.authsphere_backend.core.common.ApiStatus;
 import com.authsphere.authsphere_backend.core.exception.EmailAlreadyExistsException;
+import com.authsphere.authsphere_backend.core.exception.InvalidCredentialsException;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
@@ -12,6 +13,11 @@ import com.authsphere.authsphere_backend.identity.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
+import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
+
+
+import java.util.Optional;
 
 import java.util.UUID;
 
@@ -57,6 +63,43 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .success(true)
                 .status(ApiStatus.SUCCESS)
                 .message("User registered successfully.")
+                .data(response)
+                .build();
+    }
+
+    @Override
+    public ApiResponse<LoginResponse> login(LoginRequest request) {
+
+        Optional<User> optionalUser =
+                userRepository.findByEmail(request.getEmail());
+
+        if (optionalUser.isEmpty()) {
+            throw new InvalidCredentialsException(
+                    "Invalid email or password."
+            );
+        }
+
+        User user = optionalUser.get();
+
+        boolean passwordMatches = passwordEncoder.matches(
+                request.getPassword(),
+                user.getPasswordHash()
+        );
+
+        if (!passwordMatches) {
+            throw new InvalidCredentialsException(
+                    "Invalid email or password."
+            );
+        }
+
+        LoginResponse response = LoginResponse.builder()
+                .accessToken("JWT_COMING_SOON")
+                .build();
+
+        return ApiResponse.<LoginResponse>builder()
+                .success(true)
+                .status(ApiStatus.SUCCESS)
+                .message("Login successful.")
                 .data(response)
                 .build();
     }
