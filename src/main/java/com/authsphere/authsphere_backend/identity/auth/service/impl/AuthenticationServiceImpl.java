@@ -7,6 +7,7 @@ import com.authsphere.authsphere_backend.core.exception.InvalidCredentialsExcept
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
+import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
 import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
@@ -26,6 +27,7 @@ import java.util.UUID;
 public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserRepository userRepository;
     private final PasswordEncoder  passwordEncoder;
+    private final JwtService jwtService;
 
 
     @Override
@@ -92,8 +94,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             );
         }
 
+        String accessToken = jwtService.generateToken(user);
+
         LoginResponse response = LoginResponse.builder()
-                .accessToken("JWT_COMING_SOON")
+                .accessToken(accessToken)
                 .build();
 
         return ApiResponse.<LoginResponse>builder()
