@@ -1,5 +1,6 @@
 package com.authsphere.authsphere_backend.core.config;
 
+import com.authsphere.authsphere_backend.identity.auth.security.JwtAuthenticationEntryPoint;
 import com.authsphere.authsphere_backend.identity.auth.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +19,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -29,12 +32,15 @@ public class SecurityConfig {
         return http
                 .csrf(csrf -> csrf.disable())
 
+                .exceptionHandling(exception ->
+                        exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                )
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
                 .authorizeHttpRequests(auth -> auth
-
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
@@ -43,11 +49,12 @@ public class SecurityConfig {
                         ).permitAll()
 
                         .anyRequest().authenticated()
-
                 )
 
-                .addFilterBefore(jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                )
 
                 .httpBasic(Customizer.withDefaults())
 
