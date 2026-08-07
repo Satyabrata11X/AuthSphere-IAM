@@ -4,7 +4,9 @@ import com.authsphere.authsphere_backend.core.common.ApiResponse;
 import com.authsphere.authsphere_backend.core.common.ApiStatus;
 import com.authsphere.authsphere_backend.core.exception.EmailAlreadyExistsException;
 import com.authsphere.authsphere_backend.core.exception.InvalidCredentialsException;
+import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
+import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
 import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
@@ -14,27 +16,32 @@ import com.authsphere.authsphere_backend.identity.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
-import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
-
 
 import java.util.Optional;
-
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
-    private final UserRepository userRepository;
-    private final PasswordEncoder  passwordEncoder;
-    private final JwtService jwtService;
 
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     @Override
     public ApiResponse<RegisterResponse> register(RegisterRequest request) {
-        boolean emailExists = userRepository.existsByEmail(request.getEmail());
+
+        // Check if email already exists
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyExistsException(
+                    "Email is already registered."
+            );
+        }
+
+        // Hash the password
         String hashedPassword = passwordEncoder.encode(request.getPassword());
 
+        // Create user
         User user = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
@@ -45,21 +52,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .mfaEnabled(false)
                 .accountStatus(AccountStatus.PENDING_VERIFICATION)
                 .build();
+
+        // Save user
         userRepository.save(user);
 
+        // Prepare response
         RegisterResponse response = RegisterResponse.builder()
                 .userId(user.getId())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .email(user.getEmail())
                 .build();
-
-
-        if (emailExists) {
-            throw new EmailAlreadyExistsException(
-                    "Email is already registered."
-            );
-        }
 
         return ApiResponse.<RegisterResponse>builder()
                 .success(true)
@@ -72,8 +75,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public ApiResponse<LoginResponse> login(LoginRequest request) {
 
-        Optional<User> optionalUser =
-                userRepository.findByEmail(request.getEmail());
+        Optional<User> optionalUser = userRepository.findByEmail(request.getEmail());
 
         if (optionalUser.isEmpty()) {
             throw new InvalidCredentialsException(
@@ -83,12 +85,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         User user = optionalUser.get();
 
-        boolean passwordMatches = passwordEncoder.matches(
-                request.getPassword(),
-                user.getPasswordHash()
-        );
-
-        if (!passwordMatches) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new InvalidCredentialsException(
                     "Invalid email or password."
             );
