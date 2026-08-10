@@ -22,7 +22,6 @@ import java.util.Optional;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-
     private final UserRepository userRepository;
 
     @Override
@@ -32,48 +31,47 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-
         String authHeader = request.getHeader("Authorization");
 
+        // No JWT → continue normally
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
-
 
         String jwt = authHeader.substring(7);
 
         String username = jwtService.extractUsername(jwt);
 
         if (username != null
-                && SecurityContextHolder.getContext().getAuthentication() == null) {
+                && SecurityContextHolder
+                .getContext()
+                .getAuthentication() == null) {
 
-            Optional<User> optionalUser = userRepository.findByEmail(username);
+            Optional<User> optionalUser =
+                    userRepository.findByEmail(username);
 
-            if (optionalUser.isEmpty()) {
-                filterChain.doFilter(request, response);
-                return;
+            if (optionalUser.isPresent()) {
+
+                User user = optionalUser.get();
+
+                if (jwtService.isTokenValid(jwt, user)) {
+
+                    UsernamePasswordAuthenticationToken authenticationToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    user,
+                                    null,
+                                    Collections.emptyList()
+                            );
+
+                    SecurityContextHolder
+                            .getContext()
+                            .setAuthentication(authenticationToken);
+                }
             }
-
-            User user = optionalUser.get();
-
-            if (jwtService.isTokenValid(jwt, user)) {
-
-                UsernamePasswordAuthenticationToken authenticationToken =
-                        new UsernamePasswordAuthenticationToken(
-                                user,
-                                null,
-                                Collections.emptyList()
-                        );
-
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-            }
-
-
-            filterChain.doFilter(request, response);
-
         }
 
+        // ALWAYS continue the filter chain
+        filterChain.doFilter(request, response);
     }
-
 }

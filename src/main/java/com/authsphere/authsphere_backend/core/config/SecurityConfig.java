@@ -30,33 +30,53 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         return http
+
+                // Disable CSRF for stateless REST API
                 .csrf(csrf -> csrf.disable())
 
+                // Handle unauthorized requests
                 .exceptionHandling(exception ->
-                        exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        exception.authenticationEntryPoint(
+                                jwtAuthenticationEntryPoint
+                        )
                 )
 
+                // JWT-based authentication
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
                 )
 
+                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
+
+                        // Swagger / OpenAPI
                         .requestMatchers(
                                 "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/api/auth/register",
-                                "/api/auth/login"
+                                "/v3/api-docs/**"
                         ).permitAll()
 
+                        // Public authentication endpoints
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/verify",
+                                "/api/auth/resend-verification",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password"
+                        ).permitAll()
+
+                        // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
 
+                // JWT authentication filter
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
                 )
 
-                .httpBasic(Customizer.withDefaults())
 
                 .build();
     }

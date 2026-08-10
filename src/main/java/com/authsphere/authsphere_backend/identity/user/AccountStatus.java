@@ -10,5 +10,7 @@ public enum AccountStatus {
 
     LOCKED,
 
-    SUSPENDED
+    SUSPENDED,
+
+    DISABLED
 }
