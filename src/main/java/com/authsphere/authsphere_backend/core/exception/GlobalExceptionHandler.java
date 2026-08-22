@@ -29,4 +29,26 @@ public class GlobalExceptionHandler {
                 .message(exception.getMessage())
                 .build();
     }
+
+    @ExceptionHandler(InvalidVerificationTokenException.class)
+    public ApiResponse<Void> handleInvalidVerificationTokenException(
+            InvalidVerificationTokenException exception) {
+
+        return ApiResponse.<Void>builder()
+                .success(false)
+                .status(ApiStatus.ERROR)
+                .message(exception.getMessage())
+                .build();
+    }
+
+    @ExceptionHandler(VerificationTokenExpiredException.class)
+    public ApiResponse<Void> handleVerificationTokenExpiredException(
+            VerificationTokenExpiredException exception) {
+
+        return ApiResponse.<Void>builder()
+                .success(false)
+                .status(ApiStatus.ERROR)
+                .message(exception.getMessage())
+                .build();
+    }
 }

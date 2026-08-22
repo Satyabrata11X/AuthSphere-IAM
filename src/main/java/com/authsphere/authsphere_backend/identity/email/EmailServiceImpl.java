@@ -16,24 +16,22 @@ public class EmailServiceImpl implements EmailService {
     @Value("${spring.mail.username}")
     private String mailUsername;
 
+    @Value("${server.port}")
+    private String serverPort;
+
     @Override
     public void sendVerificationEmail(User user, String token) {
 
         String verificationLink =
-                "http://localhost:3000/verify-email?token=" + token;
+                "http://localhost:" + serverPort +
+                        "/api/auth/verify?token=" + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
 
-        // Sender
         message.setFrom(mailUsername);
-
-        // Recipient
         message.setTo(user.getEmail());
-
-        // Subject
         message.setSubject("Verify Your AuthSphere Account");
 
-        // Email content
         message.setText(
                 "Hello " + user.getFirstName() + ",\n\n" +
 
@@ -53,10 +51,8 @@ public class EmailServiceImpl implements EmailService {
                         "AuthSphere Team"
         );
 
-        // Send email
         mailSender.send(message);
 
-        // Temporary testing log
         System.out.println(
                 "Verification email sent to: " + user.getEmail()
         );
