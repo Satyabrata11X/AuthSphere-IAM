@@ -2,8 +2,11 @@ package com.authsphere.authsphere_backend.identity.auth.controller;
 
 
 import com.authsphere.authsphere_backend.core.common.ApiStatus;
+import com.authsphere.authsphere_backend.identity.auth.dto.request.ChangePasswordRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
+import com.authsphere.authsphere_backend.identity.auth.dto.request.ForgotPasswordRequest;
+import com.authsphere.authsphere_backend.identity.auth.dto.request.ResetPasswordRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
@@ -37,6 +40,24 @@ public class AuthenticationController {
         return authenticationService.login(request);
     }
 
+    @PostMapping("/forgot-password")
+    public ApiResponse<Void> forgotPassword(
+            @RequestBody ForgotPasswordRequest request) {
+
+        return authenticationService.forgotPassword(
+                request.getEmail()
+        );
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(
+            @RequestBody ResetPasswordRequest request) {
+
+        return authenticationService.resetPassword(
+                request.getToken(),
+                request.getNewPassword()
+        );
+    }
 
     @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/me")
@@ -67,4 +88,26 @@ public class AuthenticationController {
                 .data(profile)
                 .build();
     }
+
+    @SecurityRequirement(name = "bearerAuth")
+    @PostMapping("/change-password")
+    public ApiResponse<Void> changePassword(
+            Authentication authentication,
+            @RequestBody ChangePasswordRequest request) {
+
+        User user = (User) authentication.getPrincipal();
+
+        return authenticationService.changePassword(
+                user.getEmail(),
+                request
+        );
+    }
+
+    @GetMapping("/reset-password")
+    public ApiResponse<Void> validateResetPasswordToken(
+            @RequestParam String token) {
+
+        return authenticationService.validateResetToken(token);
+    }
+
 }

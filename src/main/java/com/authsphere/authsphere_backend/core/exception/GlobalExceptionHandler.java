@@ -51,4 +51,37 @@ public class GlobalExceptionHandler {
                 .message(exception.getMessage())
                 .build();
     }
+
+    @ExceptionHandler(PasswordSameAsOldException.class)
+    public ApiResponse<Void> handlePasswordSameAsOldException(
+            PasswordSameAsOldException exception) {
+
+        return ApiResponse.<Void>builder()
+                .success(false)
+                .status(ApiStatus.ERROR)
+                .message(exception.getMessage())
+                .build();
+    }
+
+    @ExceptionHandler(InvalidPasswordResetTokenException.class)
+    public ApiResponse<Void> handleInvalidPasswordResetTokenException(
+            InvalidPasswordResetTokenException exception) {
+
+        return ApiResponse.<Void>builder()
+                .success(false)
+                .status(ApiStatus.ERROR)
+                .message(exception.getMessage())
+                .build();
+    }
+
+    @ExceptionHandler(PasswordResetTokenExpiredException.class)
+    public ApiResponse<Void> handlePasswordResetTokenExpiredException(
+            PasswordResetTokenExpiredException exception) {
+
+        return ApiResponse.<Void>builder()
+                .success(false)
+                .status(ApiStatus.ERROR)
+                .message(exception.getMessage())
+                .build();
+    }
 }

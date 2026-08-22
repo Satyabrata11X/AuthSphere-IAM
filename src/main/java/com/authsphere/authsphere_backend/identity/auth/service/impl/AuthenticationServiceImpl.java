@@ -4,12 +4,15 @@ import com.authsphere.authsphere_backend.core.common.ApiResponse;
 import com.authsphere.authsphere_backend.core.common.ApiStatus;
 import com.authsphere.authsphere_backend.core.exception.EmailAlreadyExistsException;
 import com.authsphere.authsphere_backend.core.exception.InvalidCredentialsException;
+import com.authsphere.authsphere_backend.core.exception.PasswordSameAsOldException;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
+import com.authsphere.authsphere_backend.identity.auth.dto.request.ChangePasswordRequest;
 import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
+import com.authsphere.authsphere_backend.identity.token.PasswordResetService;
 import com.authsphere.authsphere_backend.identity.token.VerificationService;
 import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 import com.authsphere.authsphere_backend.identity.user.User;
@@ -29,6 +32,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final VerificationService verificationService;
+    private final PasswordResetService passwordResetService;
 
 
     @Override
@@ -83,6 +87,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .data(response)
                 .build();
     }
+
+
 
 
     @Override
@@ -143,6 +149,105 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .status(ApiStatus.SUCCESS)
                 .message("Login successful.")
                 .data(response)
+                .build();
+    }
+
+    @Override
+    public ApiResponse<Void> changePassword(
+            String email,
+            ChangePasswordRequest request) {
+
+        // 1. Find authenticated user
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new InvalidCredentialsException(
+                                "Authenticated user not found."
+                        )
+                );
+
+        // 2. Verify current password
+        boolean passwordMatches =
+                passwordEncoder.matches(
+                        request.getCurrentPassword(),
+                        user.getPasswordHash()
+                );
+
+        if (!passwordMatches) {
+            throw new InvalidCredentialsException(
+                    "Current password is incorrect."
+            );
+        }
+
+        // 3. Prevent using the same password
+        if (passwordEncoder.matches(
+                request.getNewPassword(),
+                user.getPasswordHash())) {
+
+            throw new PasswordSameAsOldException(
+                    "New password must be different from current password."
+            );
+        }
+
+        // 4. Hash the new password
+        String newPasswordHash =
+                passwordEncoder.encode(request.getNewPassword());
+
+        // 5. Update password
+        user.setPasswordHash(newPasswordHash);
+
+        // 6. Save user
+        userRepository.save(user);
+
+        // 7. Return success
+        return ApiResponse.<Void>builder()
+                .success(true)
+                .status(ApiStatus.SUCCESS)
+                .message("Password changed successfully.")
+                .build();
+    }
+
+    @Override
+    public ApiResponse<Void> forgotPassword(String email) {
+
+        userRepository.findByEmail(email)
+                .ifPresent(passwordResetService::createResetToken);
+
+        return ApiResponse.<Void>builder()
+                .success(true)
+                .status(ApiStatus.SUCCESS)
+                .message(
+                        "If an account exists for this email, " +
+                                "a password reset link has been sent."
+                )
+                .build();
+    }
+
+    @Override
+    public ApiResponse<Void> resetPassword(
+            String token,
+            String newPassword) {
+
+        passwordResetService.resetPassword(
+                token,
+                newPassword
+        );
+
+        return ApiResponse.<Void>builder()
+                .success(true)
+                .status(ApiStatus.SUCCESS)
+                .message("Password reset successfully.")
+                .build();
+    }
+
+    @Override
+    public ApiResponse<Void> validateResetToken(String token) {
+
+        passwordResetService.validateResetToken(token);
+
+        return ApiResponse.<Void>builder()
+                .success(true)
+                .status(ApiStatus.SUCCESS)
+                .message("Password reset token is valid.")
                 .build();
     }
 }

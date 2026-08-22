@@ -57,4 +57,44 @@ public class EmailServiceImpl implements EmailService {
                 "Verification email sent to: " + user.getEmail()
         );
     }
+
+    @Override
+    public void sendPasswordResetEmail(User user, String token) {
+
+        String resetLink =
+                "http://localhost:" + serverPort +
+                        "/api/auth/reset-password?token=" + token;
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setFrom(mailUsername);
+        message.setTo(user.getEmail());
+        message.setSubject("Reset Your AuthSphere Password");
+
+        message.setText(
+                "Hello " + user.getFirstName() + ",\n\n" +
+
+                        "We received a request to reset your AuthSphere password.\n\n" +
+
+                        "Please reset your password by clicking the link below:\n\n" +
+
+                        resetLink + "\n\n" +
+
+                        "This password reset link is valid for 15 minutes.\n\n" +
+
+                        "If you did not request a password reset, " +
+                        "you can safely ignore this email.\n\n" +
+
+                        "For security reasons, this link can only be used once.\n\n" +
+
+                        "Regards,\n" +
+                        "AuthSphere Team"
+        );
+
+        mailSender.send(message);
+
+        System.out.println(
+                "Password reset email sent to: " + user.getEmail()
+        );
+    }
 }
