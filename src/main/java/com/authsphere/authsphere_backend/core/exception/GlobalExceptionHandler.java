@@ -84,4 +84,15 @@ public class GlobalExceptionHandler {
                 .message(exception.getMessage())
                 .build();
     }
+
+    @ExceptionHandler(WeakPasswordException.class)
+    public ApiResponse<Void> handleWeakPasswordException(
+            WeakPasswordException exception) {
+
+        return ApiResponse.<Void>builder()
+                .success(false)
+                .status(ApiStatus.ERROR)
+                .message(exception.getMessage())
+                .build();
+    }
 }

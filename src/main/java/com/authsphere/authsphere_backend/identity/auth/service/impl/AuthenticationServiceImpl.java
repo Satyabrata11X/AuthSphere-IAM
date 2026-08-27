@@ -5,10 +5,12 @@ import com.authsphere.authsphere_backend.core.common.ApiStatus;
 import com.authsphere.authsphere_backend.core.exception.EmailAlreadyExistsException;
 import com.authsphere.authsphere_backend.core.exception.InvalidCredentialsException;
 import com.authsphere.authsphere_backend.core.exception.PasswordSameAsOldException;
+import com.authsphere.authsphere_backend.core.exception.WeakPasswordException;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
+import com.authsphere.authsphere_backend.identity.auth.security.PasswordPolicyValidator;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.ChangePasswordRequest;
 import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
@@ -33,6 +35,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final JwtService jwtService;
     private final VerificationService verificationService;
     private final PasswordResetService passwordResetService;
+    private final PasswordPolicyValidator passwordPolicyValidator;
 
 
     @Override
@@ -45,11 +48,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             );
         }
 
-        // 2. Hash password
+        // 2. Validate password strength
+        if (!passwordPolicyValidator.isValid(request.getPassword())) {
+            throw new WeakPasswordException(
+                    "Password must contain at least 8 characters, "
+                            + "one uppercase letter, one lowercase letter, "
+                            + "one number, and one special character."
+            );
+        }
+
+        // 3. Hash password
         String hashedPassword =
                 passwordEncoder.encode(request.getPassword());
 
-        // 3. Create user
+        // 4. Create user
         User user = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
@@ -61,14 +73,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .accountStatus(AccountStatus.PENDING_VERIFICATION)
                 .build();
 
-        // 4. Save user
+        // 5. Save user
         userRepository.save(user);
 
-        // 5. Create verification token
+        // 6. Create verification token
         // This also sends the verification email
         verificationService.createVerificationToken(user);
 
-        // 6. Prepare response
+        // 7. Prepare response
         RegisterResponse response = RegisterResponse.builder()
                 .userId(user.getId())
                 .firstName(user.getFirstName())
@@ -76,7 +88,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .email(user.getEmail())
                 .build();
 
-        // 7. Return response
+        // 8. Return response
         return ApiResponse.<RegisterResponse>builder()
                 .success(true)
                 .status(ApiStatus.SUCCESS)
