@@ -6,12 +6,16 @@ import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
+import jakarta.servlet.http.HttpServletRequest;
 
 public interface AuthenticationService {
 
     ApiResponse<RegisterResponse> register(RegisterRequest request);
 
-    ApiResponse<LoginResponse> login(LoginRequest request);
+    ApiResponse<LoginResponse> login(
+            LoginRequest request,
+            HttpServletRequest httpRequest
+    );
 
     ApiResponse<Void> changePassword(
             String email,

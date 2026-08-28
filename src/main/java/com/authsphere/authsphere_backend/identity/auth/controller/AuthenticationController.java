@@ -14,6 +14,7 @@ import com.authsphere.authsphere_backend.core.common.ApiResponse;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.dto.UserProfileResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -35,9 +36,13 @@ public class AuthenticationController {
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(
-            @RequestBody LoginRequest request) {
+            @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
 
-        return authenticationService.login(request);
+        return authenticationService.login(
+                request,
+                httpRequest
+        );
     }
 
     @PostMapping("/forgot-password")

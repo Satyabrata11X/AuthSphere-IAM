@@ -10,6 +10,7 @@ import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
+import com.authsphere.authsphere_backend.identity.auth.security.LoginAttemptService;
 import com.authsphere.authsphere_backend.identity.auth.security.PasswordPolicyValidator;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.ChangePasswordRequest;
@@ -19,6 +20,7 @@ import com.authsphere.authsphere_backend.identity.token.VerificationService;
 import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final VerificationService verificationService;
     private final PasswordResetService passwordResetService;
     private final PasswordPolicyValidator passwordPolicyValidator;
+    private final LoginAttemptService loginAttemptService;
 
 
     @Override
@@ -104,7 +107,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
 
     @Override
-    public ApiResponse<LoginResponse> login(LoginRequest request) {
+    public ApiResponse<LoginResponse> login(
+            LoginRequest request,
+            HttpServletRequest httpRequest) {
+
+        // Get IP address of the login request
+        String ipAddress = httpRequest.getRemoteAddr();
 
         // 1. Find user by email
         Optional<User> optionalUser =
@@ -127,6 +135,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 );
 
         if (!passwordMatches) {
+
+            // Record failed login attempt
+            loginAttemptService.recordAttempt(
+                    user,
+                    false,
+                    ipAddress
+            );
+
             throw new InvalidCredentialsException(
                     "Invalid email or password."
             );
@@ -146,16 +162,23 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             );
         }
 
-        // 6. Generate JWT
+        // 6. Record successful login attempt
+        loginAttemptService.recordAttempt(
+                user,
+                true,
+                ipAddress
+        );
+
+        // 7. Generate JWT
         String accessToken =
                 jwtService.generateToken(user);
 
-        // 7. Prepare login response
+        // 8. Prepare login response
         LoginResponse response = LoginResponse.builder()
                 .accessToken(accessToken)
                 .build();
 
-        // 8. Return response
+        // 9. Return response
         return ApiResponse.<LoginResponse>builder()
                 .success(true)
                 .status(ApiStatus.SUCCESS)
