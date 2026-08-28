@@ -10,6 +10,7 @@ import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
+import com.authsphere.authsphere_backend.identity.auth.security.AccountLockoutService;
 import com.authsphere.authsphere_backend.identity.auth.security.LoginAttemptService;
 import com.authsphere.authsphere_backend.identity.auth.security.PasswordPolicyValidator;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
@@ -39,6 +40,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final PasswordResetService passwordResetService;
     private final PasswordPolicyValidator passwordPolicyValidator;
     private final LoginAttemptService loginAttemptService;
+    private final AccountLockoutService accountLockoutService;
 
 
     @Override
@@ -111,14 +113,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             LoginRequest request,
             HttpServletRequest httpRequest) {
 
-        // Get IP address of the login request
+        // 1. Get IP address of the login request
         String ipAddress = httpRequest.getRemoteAddr();
 
-        // 1. Find user by email
+        // 2. Find user by email
         Optional<User> optionalUser =
                 userRepository.findByEmail(request.getEmail());
 
-        // 2. User not found
+        // 3. User not found
         if (optionalUser.isEmpty()) {
             throw new InvalidCredentialsException(
                     "Invalid email or password."
@@ -127,58 +129,73 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         User user = optionalUser.get();
 
-        // 3. Check password
+        // 4. Check whether the account is currently locked
+        if (accountLockoutService.isAccountLocked(user)) {
+            throw new InvalidCredentialsException(
+                    "Account is temporarily locked. Please try again later."
+            );
+        }
+
+        // 5. Check password
         boolean passwordMatches =
                 passwordEncoder.matches(
                         request.getPassword(),
                         user.getPasswordHash()
                 );
 
+        // 6. Wrong password
         if (!passwordMatches) {
 
-            // Record failed login attempt
+            // Record login attempt history
             loginAttemptService.recordAttempt(
                     user,
                     false,
                     ipAddress
             );
 
+            // Update account lockout state
+            accountLockoutService.recordFailedLogin(user);
+
             throw new InvalidCredentialsException(
                     "Invalid email or password."
             );
         }
 
-        // 4. Check email verification
+        // 7. Check email verification
         if (!user.isEmailVerified()) {
             throw new InvalidCredentialsException(
                     "Please verify your email before logging in."
             );
         }
 
-        // 5. Check account status
+        // 8. Check account status
         if (user.getAccountStatus() != AccountStatus.ACTIVE) {
             throw new InvalidCredentialsException(
                     "Your account is not active."
             );
         }
 
-        // 6. Record successful login attempt
+        // 9. Record successful login attempt
         loginAttemptService.recordAttempt(
                 user,
                 true,
                 ipAddress
         );
 
-        // 7. Generate JWT
+        // 10. Reset failed attempts
+        accountLockoutService.recordSuccessfulLogin(user);
+
+        // 11. Generate JWT
         String accessToken =
                 jwtService.generateToken(user);
 
-        // 8. Prepare login response
-        LoginResponse response = LoginResponse.builder()
-                .accessToken(accessToken)
-                .build();
+        // 12. Prepare login response
+        LoginResponse response =
+                LoginResponse.builder()
+                        .accessToken(accessToken)
+                        .build();
 
-        // 9. Return response
+        // 13. Return response
         return ApiResponse.<LoginResponse>builder()
                 .success(true)
                 .status(ApiStatus.SUCCESS)

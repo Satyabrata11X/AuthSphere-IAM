@@ -51,4 +51,12 @@ public class User extends BaseEntity {
 
     private LocalDateTime lastLoginAt;
 
+    @Column(nullable = false)
+    private int failedLoginAttempts = 0;
+
+    private LocalDateTime lockedUntil;
+
+    @Column(nullable = false)
+    private int lockoutCount = 0;
+
 }
