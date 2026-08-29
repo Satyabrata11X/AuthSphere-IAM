@@ -10,9 +10,7 @@ import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
-import com.authsphere.authsphere_backend.identity.auth.security.AccountLockoutService;
-import com.authsphere.authsphere_backend.identity.auth.security.LoginAttemptService;
-import com.authsphere.authsphere_backend.identity.auth.security.PasswordPolicyValidator;
+import com.authsphere.authsphere_backend.identity.auth.security.*;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.ChangePasswordRequest;
 import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
@@ -41,6 +39,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final PasswordPolicyValidator passwordPolicyValidator;
     private final LoginAttemptService loginAttemptService;
     private final AccountLockoutService accountLockoutService;
+    private final SecurityEventService securityEventService;
 
 
     @Override
@@ -156,6 +155,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             // Update account lockout state
             accountLockoutService.recordFailedLogin(user);
 
+            // Record security event
+            securityEventService.recordEvent(
+                    user,
+                    SecurityEventType.LOGIN_FAILED,
+                    false,
+                    ipAddress,
+                    "Invalid password"
+            );
+
             throw new InvalidCredentialsException(
                     "Invalid email or password."
             );
@@ -185,17 +193,26 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         // 10. Reset failed attempts
         accountLockoutService.recordSuccessfulLogin(user);
 
-        // 11. Generate JWT
+        // 11. Record security event
+        securityEventService.recordEvent(
+                user,
+                SecurityEventType.LOGIN_SUCCESS,
+                true,
+                ipAddress,
+                "User logged in successfully"
+        );
+
+        // 12. Generate JWT
         String accessToken =
                 jwtService.generateToken(user);
 
-        // 12. Prepare login response
+        // 13. Prepare login response
         LoginResponse response =
                 LoginResponse.builder()
                         .accessToken(accessToken)
                         .build();
 
-        // 13. Return response
+        // 14. Return response
         return ApiResponse.<LoginResponse>builder()
                 .success(true)
                 .status(ApiStatus.SUCCESS)
