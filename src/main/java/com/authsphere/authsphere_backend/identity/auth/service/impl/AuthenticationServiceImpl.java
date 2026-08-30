@@ -2,18 +2,26 @@ package com.authsphere.authsphere_backend.identity.auth.service.impl;
 
 import com.authsphere.authsphere_backend.core.common.ApiResponse;
 import com.authsphere.authsphere_backend.core.common.ApiStatus;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import com.authsphere.authsphere_backend.core.exception.EmailAlreadyExistsException;
 import com.authsphere.authsphere_backend.core.exception.InvalidCredentialsException;
 import com.authsphere.authsphere_backend.core.exception.PasswordSameAsOldException;
 import com.authsphere.authsphere_backend.core.exception.WeakPasswordException;
+import com.authsphere.authsphere_backend.identity.auth.dto.request.ChangePasswordRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
-import com.authsphere.authsphere_backend.identity.auth.security.*;
+import com.authsphere.authsphere_backend.identity.auth.security.AccountLockoutService;
+import com.authsphere.authsphere_backend.identity.auth.security.LoginAttemptService;
+import com.authsphere.authsphere_backend.identity.auth.security.PasswordPolicyValidator;
+import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventService;
+import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventType;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
-import com.authsphere.authsphere_backend.identity.auth.dto.request.ChangePasswordRequest;
 import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
+import com.authsphere.authsphere_backend.identity.session.Session;
+import com.authsphere.authsphere_backend.identity.session.SessionService;
 import com.authsphere.authsphere_backend.identity.token.PasswordResetService;
 import com.authsphere.authsphere_backend.identity.token.VerificationService;
 import com.authsphere.authsphere_backend.identity.user.AccountStatus;
@@ -21,9 +29,11 @@ import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,6 +50,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final LoginAttemptService loginAttemptService;
     private final AccountLockoutService accountLockoutService;
     private final SecurityEventService securityEventService;
+    private final SessionService sessionService;
+
+    @Value("${jwt.expiration}")
+    private long jwtExpiration;
 
 
     @Override
@@ -97,14 +111,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .success(true)
                 .status(ApiStatus.SUCCESS)
                 .message(
-                        "User registered successfully. " +
-                                "Please verify your email."
+                        "User registered successfully. "
+                                + "Please verify your email."
                 )
                 .data(response)
                 .build();
     }
-
-
 
 
     @Override
@@ -202,17 +214,31 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 "User logged in successfully"
         );
 
-        // 12. Generate JWT
-        String accessToken =
-                jwtService.generateToken(user);
+        // 12. Create authentication session
+        LocalDateTime sessionExpiresAt =
+                LocalDateTime.now().plus(Duration.ofMillis(jwtExpiration));
 
-        // 13. Prepare login response
+        Session session = sessionService.createSession(
+                user,
+                ipAddress,
+                httpRequest.getHeader("User-Agent"),
+                sessionExpiresAt
+        );
+
+// 13. Generate JWT with session ID
+        String accessToken =
+                jwtService.generateToken(
+                        user,
+                        session.getId()
+                );
+
+// 14. Prepare login response
         LoginResponse response =
                 LoginResponse.builder()
                         .accessToken(accessToken)
                         .build();
 
-        // 14. Return response
+        // 15. Return response
         return ApiResponse.<LoginResponse>builder()
                 .success(true)
                 .status(ApiStatus.SUCCESS)
@@ -220,6 +246,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .data(response)
                 .build();
     }
+
 
     @Override
     public ApiResponse<Void> changePassword(
@@ -275,6 +302,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+
     @Override
     public ApiResponse<Void> forgotPassword(String email) {
 
@@ -285,11 +313,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .success(true)
                 .status(ApiStatus.SUCCESS)
                 .message(
-                        "If an account exists for this email, " +
-                                "a password reset link has been sent."
+                        "If an account exists for this email, "
+                                + "a password reset link has been sent."
                 )
                 .build();
     }
+
 
     @Override
     public ApiResponse<Void> resetPassword(
@@ -308,6 +337,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+
     @Override
     public ApiResponse<Void> validateResetToken(String token) {
 
@@ -317,6 +347,41 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .success(true)
                 .status(ApiStatus.SUCCESS)
                 .message("Password reset token is valid.")
+                .build();
+    }
+
+    @Override
+    public ApiResponse<Void> logout(
+            User user,
+            String accessToken) {
+
+        // Extract session ID from JWT
+        UUID sessionId =
+                jwtService.extractSessionId(accessToken);
+
+        // Revoke the current session
+        sessionService.revokeSession(
+                sessionId,
+                user
+        );
+
+        return ApiResponse.<Void>builder()
+                .success(true)
+                .status(ApiStatus.SUCCESS)
+                .message("Logout successful.")
+                .build();
+    }
+
+    @Override
+    public ApiResponse<Void> logoutAll(User user) {
+
+        // Revoke all active sessions for the user
+        sessionService.revokeAllSessions(user);
+
+        return ApiResponse.<Void>builder()
+                .success(true)
+                .status(ApiStatus.SUCCESS)
+                .message("Logged out from all sessions successfully.")
                 .build();
     }
 }

@@ -115,4 +115,34 @@ public class AuthenticationController {
         return authenticationService.validateResetToken(token);
     }
 
+    @SecurityRequirement(name = "bearerAuth")
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
+
+        User user = (User) authentication.getPrincipal();
+
+        String authHeader =
+                httpRequest.getHeader("Authorization");
+
+        String accessToken =
+                authHeader.substring(7);
+
+        return authenticationService.logout(
+                user,
+                accessToken
+        );
+    }
+
+    @SecurityRequirement(name = "bearerAuth")
+    @PostMapping("/logout-all")
+    public ApiResponse<Void> logoutAll(
+            Authentication authentication) {
+
+        User user = (User) authentication.getPrincipal();
+
+        return authenticationService.logoutAll(user);
+    }
+
 }

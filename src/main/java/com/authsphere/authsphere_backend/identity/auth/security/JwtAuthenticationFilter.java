@@ -1,6 +1,8 @@
 package com.authsphere.authsphere_backend.identity.auth.security;
 
 import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
+import com.authsphere.authsphere_backend.identity.session.Session;
+import com.authsphere.authsphere_backend.identity.session.SessionService;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -16,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -23,6 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final SessionService sessionService;
 
     @Override
     protected void doFilterInternal(
@@ -31,44 +35,72 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
+        String authHeader =
+                request.getHeader("Authorization");
 
         // No JWT → continue normally
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (authHeader == null
+                || !authHeader.startsWith("Bearer ")) {
+
             filterChain.doFilter(request, response);
             return;
         }
 
         String jwt = authHeader.substring(7);
 
-        String username = jwtService.extractUsername(jwt);
+        try {
 
-        if (username != null
-                && SecurityContextHolder
-                .getContext()
-                .getAuthentication() == null) {
+            String username =
+                    jwtService.extractUsername(jwt);
 
-            Optional<User> optionalUser =
-                    userRepository.findByEmail(username);
+            if (username != null
+                    && SecurityContextHolder
+                    .getContext()
+                    .getAuthentication() == null) {
 
-            if (optionalUser.isPresent()) {
+                Optional<User> optionalUser =
+                        userRepository.findByEmail(username);
 
-                User user = optionalUser.get();
+                if (optionalUser.isPresent()) {
 
-                if (jwtService.isTokenValid(jwt, user)) {
+                    User user = optionalUser.get();
 
-                    UsernamePasswordAuthenticationToken authenticationToken =
-                            new UsernamePasswordAuthenticationToken(
-                                    user,
-                                    null,
-                                    Collections.emptyList()
-                            );
+                    if (jwtService.isTokenValid(jwt, user)) {
 
-                    SecurityContextHolder
-                            .getContext()
-                            .setAuthentication(authenticationToken);
+                        UUID sessionId =
+                                jwtService.extractSessionId(jwt);
+
+                        Session session =
+                                sessionService.getSession(sessionId);
+
+                        if (session != null
+                                && sessionService
+                                .isSessionActive(session)) {
+
+                            sessionService.updateLastActivity(session);
+
+                            UsernamePasswordAuthenticationToken authenticationToken =
+                                    new UsernamePasswordAuthenticationToken(
+                                            user,
+                                            null,
+                                            Collections.emptyList()
+                                    );
+
+                            SecurityContextHolder
+                                    .getContext()
+                                    .setAuthentication(
+                                            authenticationToken
+                                    );
+                        }
+                    }
                 }
             }
+
+        } catch (Exception ignored) {
+
+            // Invalid JWT → remain unauthenticated.
+            // Spring Security will handle authorization
+            // for protected endpoints.
         }
 
         // ALWAYS continue the filter chain

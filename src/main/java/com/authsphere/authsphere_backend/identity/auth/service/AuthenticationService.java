@@ -6,6 +6,7 @@ import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
+import com.authsphere.authsphere_backend.identity.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 
 public interface AuthenticationService {
@@ -30,4 +31,11 @@ public interface AuthenticationService {
     );
 
     ApiResponse<Void> validateResetToken(String token);
+
+    ApiResponse<Void> logout(
+            User user,
+            String accessToken
+    );
+
+    ApiResponse<Void> logoutAll(User user);
 }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -37,9 +38,11 @@ public class JwtServiceImpl implements JwtService {
     }
 
     @Override
-    public String generateToken(User user) {
+    public String generateToken(User user, UUID sessionId) {
+
         return Jwts.builder()
                 .subject(user.getEmail())
+                .claim("sid", sessionId.toString())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSigningKey())
@@ -61,9 +64,20 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public boolean isTokenValid(String token, User user) {
+
         String username = extractUsername(token);
 
         return username.equals(user.getEmail())
                 && !isTokenExpired(token);
+    }
+
+    @Override
+    public UUID extractSessionId(String token) {
+
+        String sessionId =
+                extractAllClaims(token)
+                        .get("sid", String.class);
+
+        return UUID.fromString(sessionId);
     }
 }
