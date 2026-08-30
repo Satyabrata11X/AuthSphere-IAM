@@ -122,6 +122,56 @@ AuthSphere follows a modular IAM architecture.
 
 ```
 
+### Session Management Flow
+
+```
+
+                    Login Request
+                          |
+                          v
+                  Authenticate User
+                          |
+                          v
+                   Create Session
+                          |
+                          v
+                    Save Session
+                    in PostgreSQL
+                          |
+                          v
+                     Generate JWT
+                    with Session ID
+                          |
+                          v
+                    Authenticated
+                       Client
+                          |
+                          v
+                   Request with JWT
+                          |
+                          v
+                   Validate JWT
+                          |
+                          v
+                 Extract Session ID
+                          |
+                          v
+                    Find Session
+                          |
+                          v
+              Check Session Status
+                    /          \
+                 ACTIVE       REVOKED/
+                   |           EXPIRED
+                   v              |
+          Update Last Activity    v
+                   |           Reject
+                   v              |
+             Authenticate        401
+               Request
+
+```
+
 
 ### Login Security Flow
 
