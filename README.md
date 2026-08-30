@@ -195,21 +195,75 @@ During development, APIs can be tested using the project's Swagger/OpenAPI inter
 The API documentation is intended for local development and testing.
 
 
-### Development Roadmap
+### Current Implementation Status
 
-Authentication Foundation       [██████████] Complete
-Login Security                  [██████████] Complete
-Security Events                 [██████████] Complete
+AuthSphere is currently under active development.
 
-MFA                             [----------] Planned
-RBAC                            [----------] Planned
-Organizations / Multi-Tenancy   [----------] Planned
-Application Management          [----------] Planned
-Session Management              [----------] Planned
-Audit & Monitoring              [----------] Planned
-Risk Detection                  [----------] Planned
-Security Dashboard              [----------] Planned
+The following capabilities have been implemented and tested:
 
+#### Authentication
+
+- User registration
+- Email verification
+- Password hashing
+- Password strength validation
+- JWT-based authentication
+- Login
+- Logout
+- Forgot password
+- Password reset
+- Change password
+- Account status management
+
+#### Login Security
+
+- Login attempt tracking
+- IP address tracking
+- Failed login detection
+- Account lockout
+- Progressive lockout duration
+- Automatic lock expiration
+- Failed-attempt reset after successful authentication
+
+#### Security Events
+
+- Centralized security event recording
+- Successful login events
+- Failed login events
+- User and IP association
+- Event timestamps
+- Security event details
+
+#### Session Management
+
+- Authentication session creation
+- Session persistence using PostgreSQL
+- Session status management
+- JWT-to-session binding
+- Session validation during authenticated requests
+- Session expiration detection
+- Session activity tracking
+- Individual session logout
+- Logout from all sessions
+- Session revocation
+- Invalid JWT handling
+- Revoked-session access prevention
+
+### Planned IAM Capabilities
+
+The following capabilities are planned as AuthSphere continues to evolve:
+
+- Multi-Factor Authentication (MFA)
+- Role-Based Access Control (RBAC)
+- Permission management
+- Organization and multi-tenancy
+- Application/client management
+- Advanced session policies
+- Session management dashboard
+- Audit logging
+- Security monitoring
+- Risk and threat detection
+- Administrative security dashboard
 
 ### Database
 
