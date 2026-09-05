@@ -12,6 +12,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import org.springframework.security.config.Customizer;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
+
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -32,6 +39,9 @@ public class SecurityConfig {
 
                 // Disable CSRF for stateless REST API
                 .csrf(csrf -> csrf.disable())
+
+                // Enable CORS
+                .cors(Customizer.withDefaults())
 
                 // Handle unauthorized requests
                 .exceptionHandling(exception ->
@@ -63,7 +73,8 @@ public class SecurityConfig {
                                 "/api/auth/verify",
                                 "/api/auth/resend-verification",
                                 "/api/auth/forgot-password",
-                                "/api/auth/reset-password"
+                                "/api/auth/reset-password" ,
+                                "/api/auth/mfa/verify-login"
                         ).permitAll()
 
                         // Everything else requires authentication
@@ -76,7 +87,46 @@ public class SecurityConfig {
                         UsernamePasswordAuthenticationFilter.class
                 )
 
-
                 .build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // WebStorm frontend
+        configuration.setAllowedOrigins(
+                List.of("http://localhost:63343")
+        );
+
+        // HTTP methods allowed from frontend
+        configuration.setAllowedMethods(
+                List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                        "OPTIONS"
+                )
+        );
+
+        // Request headers allowed from frontend
+        configuration.setAllowedHeaders(
+                List.of("*")
+        );
+
+        // We are using JWT in localStorage, not cookies
+        configuration.setAllowCredentials(false);
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration(
+                "/**",
+                configuration
+        );
+
+        return source;
     }
 }

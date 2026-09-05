@@ -23,8 +23,8 @@ public class EmailServiceImpl implements EmailService {
     public void sendVerificationEmail(User user, String token) {
 
         String verificationLink =
-                "http://localhost:" + serverPort +
-                        "/api/auth/verify?token=" + token;
+                "http://localhost:63343/Authsphere%20Visual/verify-email.html?token="
+                        + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
 
@@ -62,8 +62,8 @@ public class EmailServiceImpl implements EmailService {
     public void sendPasswordResetEmail(User user, String token) {
 
         String resetLink =
-                "http://localhost:" + serverPort +
-                        "/api/auth/reset-password?token=" + token;
+                "http://localhost:63343/Authsphere%20Visual/reset-password.html?token="
+                        + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
 

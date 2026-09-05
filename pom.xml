@@ -51,6 +51,14 @@
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 
+
+		<!-- TOTP / Authenticator App Support -->
+		<dependency>
+			<groupId>dev.samstevens.totp</groupId>
+			<artifactId>totp</artifactId>
+			<version>1.7.1</version>
+		</dependency>
+
 		<!-- JWT API -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
