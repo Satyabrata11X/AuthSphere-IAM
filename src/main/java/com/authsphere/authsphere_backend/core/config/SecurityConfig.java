@@ -97,7 +97,10 @@ public class SecurityConfig {
 
         // WebStorm frontend
         configuration.setAllowedOrigins(
-                List.of("http://localhost:63343")
+                List.of(
+                        "http://localhost:63342",
+                        "http://localhost:63343"
+                )
         );
 
         // HTTP methods allowed from frontend
