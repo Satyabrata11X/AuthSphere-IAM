@@ -95,4 +95,15 @@ public class GlobalExceptionHandler {
                 .message(exception.getMessage())
                 .build();
     }
+
+    @ExceptionHandler(InvalidMfaChallengeException.class)
+    public ApiResponse<Void> handleInvalidMfaChallengeException(
+            InvalidMfaChallengeException exception) {
+
+        return ApiResponse.<Void>builder()
+                .success(false)
+                .status(ApiStatus.ERROR)
+                .message(exception.getMessage())
+                .build();
+    }
 }

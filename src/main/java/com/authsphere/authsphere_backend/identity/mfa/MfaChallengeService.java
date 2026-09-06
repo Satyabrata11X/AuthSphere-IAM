@@ -1,5 +1,6 @@
 package com.authsphere.authsphere_backend.identity.mfa;
 
+import com.authsphere.authsphere_backend.core.exception.InvalidMfaChallengeException;
 import com.authsphere.authsphere_backend.identity.user.User;
 import org.springframework.stereotype.Service;
 
@@ -42,7 +43,7 @@ public class MfaChallengeService {
                 challenges.get(challengeToken);
 
         if (challenge == null) {
-            throw new IllegalArgumentException(
+            throw new InvalidMfaChallengeException(
                     "Invalid or expired MFA challenge."
             );
         }
@@ -52,7 +53,7 @@ public class MfaChallengeService {
 
             challenges.remove(challengeToken);
 
-            throw new IllegalArgumentException(
+            throw new InvalidMfaChallengeException(
                     "MFA challenge has expired."
             );
         }
