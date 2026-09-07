@@ -22,7 +22,6 @@ designed to provide secure and centralized identity, authentication,
 authorization, and account security capabilities for modern applications.
 
 ---
-
 ## Core Capabilities
 
 ### Authentication
@@ -49,6 +48,39 @@ authorization, and account security capabilities for modern applications.
 - Automatic lock expiration
 - Failed-attempt reset after successful authentication
 
+### Multi-Factor Authentication (MFA)
+
+- TOTP-based Multi-Factor Authentication
+- Authenticator app enrollment
+- QR code-based MFA setup
+- Manual MFA setup key
+- 6-digit TOTP verification
+- MFA enablement verification
+- MFA-protected login flow
+- MFA challenge tokens
+- MFA challenge expiration
+- MFA challenge replay protection
+- Invalid and expired MFA challenge handling
+
+### Session Management
+
+- Authenticated session creation
+- JWT session identification
+- Active session tracking
+- Session expiration
+- Session activity tracking
+- Session revocation
+- Logout current session
+- Logout all sessions
+
+#### Session Management (Upcoming added in  future)
+
+- Active session management UI
+- Device and browser identification
+- Session location information
+- Session termination from other devices
+- Advanced session monitoring
+
 ### Security Events
 
 - Centralized security event recording
@@ -60,12 +92,10 @@ authorization, and account security capabilities for modern applications.
 
 ### Planned IAM Capabilities
 
-- Multi-Factor Authentication (MFA)
 - Role-Based Access Control (RBAC)
 - Permission management
 - Organization and multi-tenancy
 - Application/client management
-- Session management
 - Audit logging
 - Security monitoring
 - Risk and threat detection
@@ -205,6 +235,93 @@ AuthSphere follows a modular IAM architecture.
                  Security Event
 ```
 
+### MFA Flow
+
+```text
+                    ┌─────────────────────┐
+                    │   User Registration │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   Email Verification│
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   Password Login    │
+                    └──────────┬──────────┘
+                               │
+                     MFA Enabled?
+                        /           \
+                      No             Yes
+                      │               │
+                      ▼               ▼
+               ┌────────────┐  ┌────────────────┐
+               │ Issue JWT  │  │ Create MFA     │
+               │   Token    │  │ Challenge      │
+               └─────┬──────┘  └───────┬────────┘
+                     │                  │
+                     │                  ▼
+                     │          ┌────────────────┐
+                     │          │ MFA Verification│
+                     │          │     Page        │
+                     │          └───────┬────────┘
+                     │                  │
+                     │          Enter 6-digit
+                     │          TOTP code
+                     │                  │
+                     │                  ▼
+                     │          ┌────────────────┐
+                     │          │ Verify TOTP +  │
+                     │          │ Challenge Token│
+                     │          └───────┬────────┘
+                     │                  │
+                     │             Valid?
+                     │             /      \
+                     │           No        Yes
+                     │           │          │
+                     │           ▼          ▼
+                     │       Show Error   Issue JWT
+                     │                      │
+                     └──────────────┬───────┘
+                                    │
+                                    ▼
+                         ┌────────────────────┐
+                         │ Authenticated User │
+                         └────────────────────┘
+```
+### MFA Enrollment Flow
+
+``` text
+Authenticated User
+        │
+        ▼
+MFA Setup
+        │
+        ▼
+Backend Generates TOTP Secret
+        │
+        ├───────────────┐
+        ▼               ▼
+   QR Code         Manual Setup Key
+        │               │
+        └───────┬───────┘
+                ▼
+      Authenticator App
+                │
+                ▼
+        6-Digit TOTP Code
+                │
+                ▼
+        Verify & Enable MFA
+                │
+                ▼
+          MFA Enabled
+```
+
+
+
 ### Technology Stack
 
 | Technology        | Purpose                         |
@@ -299,11 +416,26 @@ The following capabilities have been implemented and tested:
 - Invalid JWT handling
 - Revoked-session access prevention
 
+#### Multi-Factor Authentication (MFA)
+
+- TOTP-based Multi-Factor Authentication
+- Authenticator app enrollment
+- QR code-based MFA setup
+- Manual MFA setup key
+- 6-digit TOTP verification
+- MFA enablement verification
+- MFA-protected login flow
+- MFA challenge token generation
+- MFA challenge expiration
+- MFA challenge replay protection
+- Invalid MFA code handling
+- Invalid MFA challenge handling
+- Expired MFA challenge handling
+
 ### Planned IAM Capabilities
 
 The following capabilities are planned as AuthSphere continues to evolve:
 
-- Multi-Factor Authentication (MFA)
 - Role-Based Access Control (RBAC)
 - Permission management
 - Organization and multi-tenancy
@@ -385,9 +517,9 @@ Additional automated tests will be introduced as the project matures.
 
 AuthSphere-IAM is currently under active development.
 
-The authentication foundation, login-security mechanisms, and initial security-event infrastructure have been implemented and tested.
+The authentication foundation, login-security mechanisms, Multi-Factor Authentication (MFA), session management, and initial security-event infrastructure have been implemented and tested.
 
-The project is progressing toward a broader IAM platform covering authentication, MFA, RBAC, organizations, application integration, session management, security monitoring, and risk detection.
+The project is progressing toward a broader IAM platform covering authentication, MFA, RBAC, organizations, application integration, advanced session management, security monitoring, audit logging, and risk detection.
 
 
 
