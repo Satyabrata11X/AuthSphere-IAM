@@ -2,14 +2,11 @@ package com.authsphere.authsphere_backend.identity.user;
 
 
 import com.authsphere.authsphere_backend.core.common.BaseEntity;
-import com.authsphere.authsphere_backend.identity.role.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -62,13 +59,4 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private int lockoutCount = 0;
 
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    @Builder.Default
-    private Set<Role> roles = new HashSet<>();
 }
