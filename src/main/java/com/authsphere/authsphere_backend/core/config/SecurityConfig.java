@@ -5,14 +5,13 @@ import com.authsphere.authsphere_backend.identity.auth.security.JwtAuthenticatio
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import org.springframework.security.config.Customizer;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,37 +26,45 @@ public class SecurityConfig {
 
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
+
+    // =========================================================
+    // PASSWORD ENCODER
+    // =========================================================
+
     @Bean
     public PasswordEncoder passwordEncoder() {
+
         return new BCryptPasswordEncoder();
     }
 
+
+    // =========================================================
+    // SECURITY FILTER CHAIN
+    // =========================================================
+
+
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http
+    ) throws Exception {
 
         return http
-
-                // Disable CSRF for stateless REST API
                 .csrf(csrf -> csrf.disable())
 
-                // Enable CORS
                 .cors(Customizer.withDefaults())
 
-                // Handle unauthorized requests
                 .exceptionHandling(exception ->
                         exception.authenticationEntryPoint(
                                 jwtAuthenticationEntryPoint
                         )
                 )
 
-                // JWT-based authentication
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
                         )
                 )
 
-                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
 
                         // Swagger / OpenAPI
@@ -73,15 +80,21 @@ public class SecurityConfig {
                                 "/api/auth/verify",
                                 "/api/auth/resend-verification",
                                 "/api/auth/forgot-password",
-                                "/api/auth/reset-password" ,
+                                "/api/auth/reset-password",
                                 "/api/auth/mfa/verify-login"
                         ).permitAll()
+
+                        // RBAC management — ADMIN only
+                        .requestMatchers(
+                                "/api/roles/**",
+                                "/api/permissions/**",
+                                "/api/users/*/roles/**"
+                        ).hasRole("ADMIN")
 
                         // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
 
-                // JWT authentication filter
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -90,12 +103,21 @@ public class SecurityConfig {
                 .build();
     }
 
+    // =========================================================
+    // CORS CONFIGURATION
+    // =========================================================
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration configuration =
+                new CorsConfiguration();
 
-        // WebStorm frontend
+
+        // =====================================================
+        // FRONTEND ORIGINS
+        // =====================================================
+
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:63342",
@@ -104,7 +126,11 @@ public class SecurityConfig {
                 )
         );
 
-        // HTTP methods allowed from frontend
+
+        // =====================================================
+        // ALLOWED HTTP METHODS
+        // =====================================================
+
         configuration.setAllowedMethods(
                 List.of(
                         "GET",
@@ -115,13 +141,30 @@ public class SecurityConfig {
                 )
         );
 
-        // Request headers allowed from frontend
+
+        // =====================================================
+        // ALLOWED HEADERS
+        // =====================================================
+
         configuration.setAllowedHeaders(
                 List.of("*")
         );
 
-        // We are using JWT in localStorage, not cookies
+
+        // =====================================================
+        // CREDENTIALS
+        // =====================================================
+
+        /*
+         * AuthSphere uses JWT in the Authorization header,
+         * not browser cookies.
+         */
         configuration.setAllowCredentials(false);
+
+
+        // =====================================================
+        // REGISTER CORS CONFIGURATION
+        // =====================================================
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
