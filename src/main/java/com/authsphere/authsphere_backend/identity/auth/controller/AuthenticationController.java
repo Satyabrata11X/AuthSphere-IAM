@@ -1,28 +1,30 @@
 package com.authsphere.authsphere_backend.identity.auth.controller;
 
-
+import com.authsphere.authsphere_backend.core.common.ApiResponse;
 import com.authsphere.authsphere_backend.core.common.ApiStatus;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.ChangePasswordRequest;
-import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
-import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.ForgotPasswordRequest;
+import com.authsphere.authsphere_backend.identity.auth.dto.request.LoginRequest;
+import com.authsphere.authsphere_backend.identity.auth.dto.request.RegisterRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.request.ResetPasswordRequest;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.RegisterResponse;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
-import com.authsphere.authsphere_backend.core.common.ApiResponse;
+import com.authsphere.authsphere_backend.identity.permission.Permission;
+import com.authsphere.authsphere_backend.identity.role.Role;
 import com.authsphere.authsphere_backend.identity.user.User;
-import com.authsphere.authsphere_backend.identity.user.dto.UserProfileResponse;
+import com.authsphere.authsphere_backend.identity.auth.dto.response.UserProfileResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
@@ -71,6 +73,30 @@ public class AuthenticationController {
 
         User user = (User) authentication.getPrincipal();
 
+        /*
+         * Extract roles from the authenticated user.
+         */
+        List<String> roles = user.getRoles()
+                .stream()
+                .map(Role::getName)
+                .toList();
+
+        /*
+         * Extract all permissions granted through the user's roles.
+         *
+         * distinct() prevents duplicate permissions if multiple
+         * roles grant the same permission.
+         */
+        List<String> permissions = user.getRoles()
+                .stream()
+                .flatMap(role -> role.getPermissions().stream())
+                .map(Permission::getName)
+                .distinct()
+                .toList();
+
+        /*
+         * Build authenticated user profile.
+         */
         UserProfileResponse profile =
                 UserProfileResponse.builder()
                         .id(user.getId())
@@ -84,6 +110,8 @@ public class AuthenticationController {
                         .mfaEnabled(user.isMfaEnabled())
                         .accountStatus(user.getAccountStatus())
                         .lastLoginAt(user.getLastLoginAt())
+                        .roles(roles)
+                        .permissions(permissions)
                         .build();
 
         return ApiResponse.<UserProfileResponse>builder()
@@ -144,5 +172,4 @@ public class AuthenticationController {
 
         return authenticationService.logoutAll(user);
     }
-
 }

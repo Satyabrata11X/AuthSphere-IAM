@@ -74,7 +74,7 @@ public class SuperAdminInitializer implements CommandLineRunner {
 
 
         // ---------------------------------------------------------
-        // 3. Create or update bootstrap user
+        // 3. Create bootstrap user if it does not exist
         // ---------------------------------------------------------
 
         if (user == null) {
@@ -110,38 +110,33 @@ public class SuperAdminInitializer implements CommandLineRunner {
 
         } else {
 
+            // -----------------------------------------------------
+            // Existing user
+            // -----------------------------------------------------
+
             log.info(
                     "Existing bootstrap user found: {}",
                     email
             );
 
-            // Make the designated bootstrap account active.
-            user.setEmailVerified(true);
-
-            user.setAccountStatus(
-                    AccountStatus.ACTIVE
-            );
-
-            // Reset password to the configured bootstrap password.
-            user.setPasswordHash(
-                    passwordEncoder.encode(
-                            superAdminPassword
-                    )
-            );
-
             /*
-             * MFA is intentionally disabled here.
+             * IMPORTANT:
              *
-             * MFA should be configured through the normal
-             * MFA setup flow so that the account receives
-             * a valid TOTP secret/configuration.
+             * Do NOT reset the existing user's:
+             *
+             * - password
+             * - MFA state
+             * - MFA configuration
+             * - login history
+             * - failed login attempts
+             * - lockout state
+             *
+             * The bootstrap initializer should not overwrite
+             * authentication state after the account has been created.
              */
-            user.setMfaEnabled(false);
-
-            userRepository.save(user);
 
             log.info(
-                    "Existing bootstrap user updated successfully for: {}",
+                    "Existing Super Admin authentication state preserved for: {}",
                     email
             );
         }
