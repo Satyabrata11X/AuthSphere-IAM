@@ -42,7 +42,6 @@ public class SecurityConfig {
     // SECURITY FILTER CHAIN
     // =========================================================
 
-
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http
@@ -67,13 +66,20 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // Swagger / OpenAPI
+                        // =================================================
+                        // SWAGGER / OPENAPI
+                        // =================================================
+
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
 
-                        // Public authentication endpoints
+
+                        // =================================================
+                        // PUBLIC AUTHENTICATION ENDPOINTS
+                        // =================================================
+
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
@@ -84,14 +90,31 @@ public class SecurityConfig {
                                 "/api/auth/mfa/verify-login"
                         ).permitAll()
 
-                        // RBAC management — ADMIN only
+
+                        // =================================================
+                        // RBAC MANAGEMENT — ADMIN
+                        // =================================================
+
                         .requestMatchers(
                                 "/api/roles/**",
                                 "/api/permissions/**",
                                 "/api/users/*/roles/**"
                         ).hasRole("ADMIN")
 
-                        // Everything else requires authentication
+
+                        // =================================================
+                        // SUPER ADMIN MANAGEMENT
+                        // =================================================
+
+                        .requestMatchers(
+                                "/api/superadmin/**"
+                        ).hasRole("SUPER_ADMIN")
+
+
+                        // =================================================
+                        // EVERYTHING ELSE REQUIRES AUTHENTICATION
+                        // =================================================
+
                         .anyRequest().authenticated()
                 )
 
@@ -102,6 +125,7 @@ public class SecurityConfig {
 
                 .build();
     }
+
 
     // =========================================================
     // CORS CONFIGURATION

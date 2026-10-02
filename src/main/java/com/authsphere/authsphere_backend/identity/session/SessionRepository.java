@@ -23,4 +23,6 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
             User user,
             SessionStatus status
     );
+
+    long countByStatus(SessionStatus status);
 }
