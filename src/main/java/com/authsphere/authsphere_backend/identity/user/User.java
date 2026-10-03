@@ -1,7 +1,7 @@
 package com.authsphere.authsphere_backend.identity.user;
 
-
 import com.authsphere.authsphere_backend.core.common.BaseEntity;
+import com.authsphere.authsphere_backend.identity.company.Company;
 import com.authsphere.authsphere_backend.identity.role.Role;
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,39 +18,38 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-
 public class User extends BaseEntity {
 
     @Column(nullable = false)
-    private  String firstName;
+    private String firstName;
 
     @Column(nullable = false)
     private String lastName;
 
-    @Column(nullable = false , unique = true)
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
     private String passwordHash;
 
-    @Column(nullable = false,unique = true)
-    private  String employeeId;
-
+    @Column(nullable = false, unique = true)
+    private String employeeId;
 
     private String phoneNumber;
 
     private String profileImageUrl;
 
-   @Builder.Default
+    @Builder.Default
     private boolean emailVerified = false;
 
-   @Builder.Default
+    @Builder.Default
     private boolean mfaEnabled = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private AccountStatus accountStatus = AccountStatus.PENDING_VERIFICATION;
+    private AccountStatus accountStatus =
+            AccountStatus.PENDING_VERIFICATION;
 
     private LocalDateTime lastLoginAt;
 
@@ -61,6 +60,50 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private int lockoutCount = 0;
+
+
+    // =========================================================
+    // COMPANY
+    // =========================================================
+
+    /*
+     * Company to which this user belongs.
+     *
+     * SUPER_ADMIN normally has no company.
+     * ADMIN and USER belong to a company.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+
+
+    // =========================================================
+    // USER MANAGEMENT HIERARCHY
+    // =========================================================
+
+    /*
+     * Admin responsible for managing this user.
+     *
+     * This is a self-referencing relationship because
+     * both the managed user and the manager are User entities.
+     *
+     * Example:
+     *
+     * Admin John
+     *      ↑
+     *      │
+     *      ├── Alice
+     *      ├── Bob
+     *      └── Mike
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "managed_by_user_id")
+    private User managedBy;
+
+
+    // =========================================================
+    // ROLES
+    // =========================================================
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

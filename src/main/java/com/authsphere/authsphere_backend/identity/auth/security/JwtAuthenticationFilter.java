@@ -34,7 +34,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final RbacAuthorityService rbacAuthorityService;
 
-
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -42,9 +41,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String authHeader =
-                request.getHeader("Authorization");
-
+        String authHeader = request.getHeader("Authorization");
 
         // =====================================================
         // NO JWT
@@ -57,14 +54,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-
         // =====================================================
         // EXTRACT JWT
         // =====================================================
 
-        String jwt =
-                authHeader.substring(7);
-
+        String jwt = authHeader.substring(7);
 
         try {
 
@@ -72,15 +66,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // EXTRACT USERNAME FROM JWT
             // =================================================
 
-            String username =
-                    jwtService.extractUsername(jwt);
-
+            String username = jwtService.extractUsername(jwt);
 
             if (username != null
                     && SecurityContextHolder
                     .getContext()
                     .getAuthentication() == null) {
-
 
                 // =============================================
                 // FIND USER
@@ -89,19 +80,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Optional<User> optionalUser =
                         userRepository.findByEmail(username);
 
-
                 if (optionalUser.isPresent()) {
 
-                    User user =
-                            optionalUser.get();
-
+                    User user = optionalUser.get();
 
                     // =========================================
                     // VALIDATE JWT
                     // =========================================
 
                     if (jwtService.isTokenValid(jwt, user)) {
-
 
                         // =====================================
                         // EXTRACT SESSION
@@ -110,10 +97,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         UUID sessionId =
                                 jwtService.extractSessionId(jwt);
 
-
                         Session session =
                                 sessionService.getSession(sessionId);
-
 
                         // =====================================
                         // VALIDATE SESSION
@@ -123,14 +108,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 && sessionService
                                 .isSessionActive(session)) {
 
-
                             // =================================
                             // UPDATE SESSION ACTIVITY
                             // =================================
 
                             sessionService
                                     .updateLastActivity(session);
-
 
                             // =================================
                             // LOAD RBAC AUTHORITIES
@@ -140,7 +123,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     authorities =
                                     rbacAuthorityService
                                             .getAuthorities(user);
-
 
                             // =================================
                             // CREATE AUTHENTICATION
@@ -153,7 +135,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                             null,
                                             authorities
                                     );
-
 
                             // =================================
                             // STORE AUTHENTICATION
@@ -169,18 +150,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
 
+        } catch (Exception e) {
 
-        } catch (Exception ignored) {
+            // =================================================
+            // TEMPORARY DEBUGGING
+            // =================================================
 
-            /*
-             * Invalid JWT or invalid session.
-             *
-             * We intentionally do not stop the filter chain.
-             * Spring Security will handle authorization for
-             * protected endpoints.
-             */
+            System.err.println(
+                    "========== JWT AUTHENTICATION ERROR =========="
+            );
+
+            System.err.println(
+                    "Request: "
+                            + request.getMethod()
+                            + " "
+                            + request.getRequestURI()
+            );
+
+            e.printStackTrace();
+
+            System.err.println(
+                    "=============================================="
+            );
         }
-
 
         // =====================================================
         // CONTINUE FILTER CHAIN

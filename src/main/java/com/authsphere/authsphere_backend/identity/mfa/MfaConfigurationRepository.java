@@ -14,4 +14,6 @@ public interface MfaConfigurationRepository
     Optional<MfaConfiguration> findByUserId(UUID userId);
 
     boolean existsByUser(User user);
+
+    long countByEnabledTrue();
 }
