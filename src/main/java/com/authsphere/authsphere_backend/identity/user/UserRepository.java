@@ -66,13 +66,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // =========================================================
 
     @Query("""
-        SELECT COUNT(DISTINCT u.id)
-        FROM User u
-        JOIN u.roles r
-        WHERE r.name IN ('ADMIN', 'SUPER_ADMIN')
-    """)
+    SELECT COUNT(DISTINCT u.id)
+    FROM User u
+    JOIN u.roles r
+    WHERE r.name = 'ADMIN'
+""")
     long countAdministrators();
-
 
     // =========================================================
     // GLOBAL COMPANY USERS
