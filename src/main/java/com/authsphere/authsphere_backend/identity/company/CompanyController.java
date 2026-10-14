@@ -1,8 +1,11 @@
+
 package com.authsphere.authsphere_backend.identity.company;
 
+import com.authsphere.authsphere_backend.identity.user.User;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,11 +19,9 @@ public class CompanyController {
 
     private final CompanyService companyService;
 
-    /*
-     * =========================================================
-     * CREATE COMPANY
-     * =========================================================
-     */
+    // =========================================================
+    // CREATE COMPANY
+    // =========================================================
 
     @PostMapping
     public ResponseEntity<CompanyResponse> createCompany(
@@ -37,16 +38,12 @@ public class CompanyController {
                 industry
         );
 
-        return ResponseEntity.ok(
-                toResponse(company)
-        );
+        return ResponseEntity.ok(toResponse(company));
     }
 
-    /*
-     * =========================================================
-     * GET ALL COMPANIES
-     * =========================================================
-     */
+    // =========================================================
+    // GET ALL COMPANIES — SUPER ADMIN
+    // =========================================================
 
     @GetMapping
     public ResponseEntity<List<CompanyResponse>> getAllCompanies() {
@@ -60,30 +57,48 @@ public class CompanyController {
         return ResponseEntity.ok(companies);
     }
 
-    /*
-     * =========================================================
-     * GET COMPANY BY ID
-     * =========================================================
-     */
+    // =========================================================
+    // GET AUTHENTICATED USER'S COMPANY
+    // =========================================================
+
+
+    @GetMapping("/my-company")
+    public ResponseEntity<CompanyResponse> getMyCompany(
+            Authentication authentication
+    ) {
+        if (authentication == null
+                || !(authentication.getPrincipal() instanceof User user)) {
+            return ResponseEntity.status(401).build();
+        }
+
+        if (user.getCompany() == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Company company = companyService.getCompany(
+                user.getCompany().getId()
+        );
+
+        return ResponseEntity.ok(toResponse(company));
+    }
+
+    // =========================================================
+    // GET COMPANY BY ID — SUPER ADMIN
+    // =========================================================
 
     @GetMapping("/{companyId}")
     public ResponseEntity<CompanyResponse> getCompany(
             @PathVariable UUID companyId
     ) {
 
-        Company company =
-                companyService.getCompany(companyId);
+        Company company = companyService.getCompany(companyId);
 
-        return ResponseEntity.ok(
-                toResponse(company)
-        );
+        return ResponseEntity.ok(toResponse(company));
     }
 
-    /*
-     * =========================================================
-     * UPDATE COMPANY
-     * =========================================================
-     */
+    // =========================================================
+    // UPDATE COMPANY — SUPER ADMIN
+    // =========================================================
 
     @PutMapping("/{companyId}")
     public ResponseEntity<CompanyResponse> updateCompany(
@@ -94,25 +109,20 @@ public class CompanyController {
             @RequestParam(required = false) String industry
     ) {
 
-        Company company =
-                companyService.updateCompany(
-                        companyId,
-                        name,
-                        description,
-                        website,
-                        industry
-                );
-
-        return ResponseEntity.ok(
-                toResponse(company)
+        Company company = companyService.updateCompany(
+                companyId,
+                name,
+                description,
+                website,
+                industry
         );
+
+        return ResponseEntity.ok(toResponse(company));
     }
 
-    /*
-     * =========================================================
-     * UPDATE COMPANY STATUS
-     * =========================================================
-     */
+    // =========================================================
+    // UPDATE COMPANY STATUS — SUPER ADMIN
+    // =========================================================
 
     @PatchMapping("/{companyId}/status")
     public ResponseEntity<CompanyResponse> updateCompanyStatus(
@@ -120,22 +130,17 @@ public class CompanyController {
             @RequestParam CompanyStatus status
     ) {
 
-        Company company =
-                companyService.updateCompanyStatus(
-                        companyId,
-                        status
-                );
-
-        return ResponseEntity.ok(
-                toResponse(company)
+        Company company = companyService.updateCompanyStatus(
+                companyId,
+                status
         );
+
+        return ResponseEntity.ok(toResponse(company));
     }
 
-    /*
-     * =========================================================
-     * DELETE COMPANY
-     * =========================================================
-     */
+    // =========================================================
+    // DELETE COMPANY — SUPER ADMIN
+    // =========================================================
 
     @DeleteMapping("/{companyId}")
     public ResponseEntity<Void> deleteCompany(
@@ -147,15 +152,11 @@ public class CompanyController {
         return ResponseEntity.noContent().build();
     }
 
-    /*
-     * =========================================================
-     * ENTITY → RESPONSE DTO
-     * =========================================================
-     */
+    // =========================================================
+    // ENTITY → RESPONSE DTO
+    // =========================================================
 
-    private CompanyResponse toResponse(
-            Company company
-    ) {
+    private CompanyResponse toResponse(Company company) {
 
         return new CompanyResponse(
                 company.getId(),

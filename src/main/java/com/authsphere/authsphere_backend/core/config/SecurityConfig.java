@@ -2,9 +2,11 @@ package com.authsphere.authsphere_backend.core.config;
 
 import com.authsphere.authsphere_backend.identity.auth.security.JwtAuthenticationEntryPoint;
 import com.authsphere.authsphere_backend.identity.auth.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -26,17 +28,14 @@ public class SecurityConfig {
 
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-
     // =========================================================
     // PASSWORD ENCODER
     // =========================================================
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-
         return new BCryptPasswordEncoder();
     }
-
 
     // =========================================================
     // SECURITY FILTER CHAIN
@@ -66,6 +65,12 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
+                        // Allow Spring's error dispatch to reach
+                        // the application's error handler.
+                        .dispatcherTypeMatchers(
+                                DispatcherType.ERROR
+                        ).permitAll()
+
                         // =================================================
                         // SWAGGER / OPENAPI
                         // =================================================
@@ -74,7 +79,6 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
-
 
                         // =================================================
                         // PUBLIC AUTHENTICATION ENDPOINTS
@@ -90,7 +94,6 @@ public class SecurityConfig {
                                 "/api/auth/mfa/verify-login"
                         ).permitAll()
 
-
                         // =================================================
                         // RBAC MANAGEMENT — ADMIN
                         // =================================================
@@ -101,7 +104,6 @@ public class SecurityConfig {
                                 "/api/users/*/roles/**"
                         ).hasRole("ADMIN")
 
-
                         // =================================================
                         // SUPER ADMIN MANAGEMENT
                         // =================================================
@@ -110,6 +112,26 @@ public class SecurityConfig {
                                 "/api/superadmin/**"
                         ).hasRole("SUPER_ADMIN")
 
+                        // =================================================
+                        // COMPANY-SCOPED DETAILS
+                        // =================================================
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/companies/my-company"
+                        ).hasAnyRole(
+                                "SUPER_ADMIN",
+                                "ADMIN",
+                                "USER"
+                        )
+
+                        // =================================================
+                        // GLOBAL COMPANY MANAGEMENT — SUPER ADMIN ONLY
+                        // =================================================
+
+                        .requestMatchers(
+                                "/api/companies/**"
+                        ).hasRole("SUPER_ADMIN")
 
                         // =================================================
                         // EVERYTHING ELSE REQUIRES AUTHENTICATION
@@ -126,7 +148,6 @@ public class SecurityConfig {
                 .build();
     }
 
-
     // =========================================================
     // CORS CONFIGURATION
     // =========================================================
@@ -137,11 +158,6 @@ public class SecurityConfig {
         CorsConfiguration configuration =
                 new CorsConfiguration();
 
-
-        // =====================================================
-        // FRONTEND ORIGINS
-        // =====================================================
-
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:63342",
@@ -150,45 +166,22 @@ public class SecurityConfig {
                 )
         );
 
-
-        // =====================================================
-        // ALLOWED HTTP METHODS
-        // =====================================================
-
         configuration.setAllowedMethods(
                 List.of(
                         "GET",
                         "POST",
                         "PUT",
                         "DELETE",
+                        "PATCH",
                         "OPTIONS"
                 )
         );
-
-
-        // =====================================================
-        // ALLOWED HEADERS
-        // =====================================================
 
         configuration.setAllowedHeaders(
                 List.of("*")
         );
 
-
-        // =====================================================
-        // CREDENTIALS
-        // =====================================================
-
-        /*
-         * AuthSphere uses JWT in the Authorization header,
-         * not browser cookies.
-         */
         configuration.setAllowCredentials(false);
-
-
-        // =====================================================
-        // REGISTER CORS CONFIGURATION
-        // =====================================================
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();

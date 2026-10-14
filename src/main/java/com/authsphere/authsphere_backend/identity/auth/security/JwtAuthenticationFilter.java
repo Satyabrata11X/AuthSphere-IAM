@@ -43,6 +43,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
+        System.out.println(
+                "JWT DEBUG: " + request.getMethod()
+                        + " " + request.getRequestURI()
+                        + " | Authorization header present: "
+                        + (authHeader != null)
+                        + " | Current authentication: "
+                        + SecurityContextHolder.getContext().getAuthentication()
+        );
+
         // =====================================================
         // NO JWT
         // =====================================================
