@@ -3,6 +3,7 @@ package com.authsphere.authsphere_backend.identity.user;
 import com.authsphere.authsphere_backend.identity.company.Company;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import com.authsphere.authsphere_backend.identity.role.Role;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +14,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByEmail(String email);
 
     Optional<User> findByEmail(String email);
+
+    boolean existsByRolesContaining(Role role);
 
 
     // =========================================================

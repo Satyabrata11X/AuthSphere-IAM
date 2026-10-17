@@ -1,5 +1,6 @@
 package com.authsphere.authsphere_backend.identity.role;
 
+import com.authsphere.authsphere_backend.identity.permission.Permission;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
@@ -11,4 +12,6 @@ public interface RoleRepository
     Optional<Role> findByName(String name);
 
     boolean existsByName(String name);
+
+    boolean existsByPermissionsContaining(Permission permission);
 }

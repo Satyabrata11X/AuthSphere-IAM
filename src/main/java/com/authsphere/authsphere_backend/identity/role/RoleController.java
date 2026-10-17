@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +22,7 @@ public class RoleController {
     // CREATE ROLE
     // =========================================================
 
+    @PreAuthorize("hasAuthority('ROLE_CREATE')")
     @PostMapping
     public ResponseEntity<Role> createRole(
             @Valid @RequestBody CreateRoleRequest request
@@ -42,6 +44,7 @@ public class RoleController {
     // GET ALL ROLES
     // =========================================================
 
+    @PreAuthorize("hasAuthority('ROLE_READ')")
     @GetMapping
     public ResponseEntity<List<Role>> getAllRoles() {
 
@@ -55,6 +58,7 @@ public class RoleController {
     // GET ROLE
     // =========================================================
 
+    @PreAuthorize("hasAuthority('ROLE_READ')")
     @GetMapping("/{roleId}")
     public ResponseEntity<Role> getRole(
             @PathVariable UUID roleId
@@ -70,6 +74,7 @@ public class RoleController {
     // DELETE ROLE
     // =========================================================
 
+    @PreAuthorize("hasAuthority('ROLE_DELETE')")
     @DeleteMapping("/{roleId}")
     public ResponseEntity<Void> deleteRole(
             @PathVariable UUID roleId
@@ -85,6 +90,7 @@ public class RoleController {
     // ADD PERMISSION TO ROLE
     // =========================================================
 
+    @PreAuthorize("hasAuthority('ROLE_UPDATE')")
     @PostMapping("/{roleId}/permissions/{permissionId}")
     public ResponseEntity<Role> addPermission(
             @PathVariable UUID roleId,
@@ -104,6 +110,7 @@ public class RoleController {
     // REMOVE PERMISSION FROM ROLE
     // =========================================================
 
+    @PreAuthorize("hasAuthority('ROLE_UPDATE')")
     @DeleteMapping("/{roleId}/permissions/{permissionId}")
     public ResponseEntity<Role> removePermission(
             @PathVariable UUID roleId,

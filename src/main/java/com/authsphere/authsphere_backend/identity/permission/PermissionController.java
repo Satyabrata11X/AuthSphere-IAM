@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +22,7 @@ public class PermissionController {
     // CREATE PERMISSION
     // =========================================================
 
+    @PreAuthorize("hasAuthority('PERMISSION_CREATE')")
     @PostMapping
     public ResponseEntity<Permission> createPermission(
             @Valid @RequestBody CreatePermissionRequest request
@@ -42,6 +44,7 @@ public class PermissionController {
     // GET ALL PERMISSIONS
     // =========================================================
 
+    @PreAuthorize("hasAuthority('PERMISSION_READ')")
     @GetMapping
     public ResponseEntity<List<Permission>> getAllPermissions() {
 
@@ -55,6 +58,7 @@ public class PermissionController {
     // GET PERMISSION
     // =========================================================
 
+    @PreAuthorize("hasAuthority('PERMISSION_READ')")
     @GetMapping("/{permissionId}")
     public ResponseEntity<Permission> getPermission(
             @PathVariable UUID permissionId
@@ -70,6 +74,7 @@ public class PermissionController {
     // DELETE PERMISSION
     // =========================================================
 
+    @PreAuthorize("hasAuthority('PERMISSION_DELETE')")
     @DeleteMapping("/{permissionId}")
     public ResponseEntity<Void> deletePermission(
             @PathVariable UUID permissionId

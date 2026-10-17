@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,6 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 @Configuration
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -94,15 +96,15 @@ public class SecurityConfig {
                                 "/api/auth/mfa/verify-login"
                         ).permitAll()
 
-                        // =================================================
-                        // RBAC MANAGEMENT — ADMIN
-                        // =================================================
+
+                        // RBAC MANAGEMENT — SUPER ADMIN ONLY
+
 
                         .requestMatchers(
                                 "/api/roles/**",
                                 "/api/permissions/**",
                                 "/api/users/*/roles/**"
-                        ).hasRole("ADMIN")
+                        ).hasRole("SUPER_ADMIN")
 
                         // =================================================
                         // SUPER ADMIN MANAGEMENT

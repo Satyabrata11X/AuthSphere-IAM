@@ -1,5 +1,6 @@
 package com.authsphere.authsphere_backend.identity.permission;
 
+import com.authsphere.authsphere_backend.identity.role.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ public class PermissionService {
 
     private final PermissionRepository permissionRepository;
 
+    private final RoleRepository roleRepository;
 
     // =========================================================
     // CREATE PERMISSION
@@ -84,8 +86,13 @@ public class PermissionService {
 
     public void deletePermission(UUID permissionId) {
 
-        Permission permission =
-                getPermission(permissionId);
+        Permission permission = getPermission(permissionId);
+
+        if (roleRepository.existsByPermissionsContaining(permission)) {
+            throw new IllegalArgumentException(
+                    "Cannot delete a permission assigned to one or more roles."
+            );
+        }
 
         permissionRepository.delete(permission);
     }

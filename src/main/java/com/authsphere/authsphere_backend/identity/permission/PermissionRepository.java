@@ -2,6 +2,7 @@ package com.authsphere.authsphere_backend.identity.permission;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,4 +12,6 @@ public interface PermissionRepository
     Optional<Permission> findByName(String name);
 
     boolean existsByName(String name);
+
+
 }
