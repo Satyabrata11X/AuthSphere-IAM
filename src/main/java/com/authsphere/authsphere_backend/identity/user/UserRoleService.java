@@ -1,6 +1,7 @@
 
 package com.authsphere.authsphere_backend.identity.user;
 
+import com.authsphere.authsphere_backend.core.exception.ResourceNotFoundException;
 import com.authsphere.authsphere_backend.identity.role.Role;
 import com.authsphere.authsphere_backend.identity.role.RoleRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,7 @@ public class UserRoleService {
 
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "Role not found: " + roleId
                         )
                 );
@@ -69,7 +70,7 @@ public class UserRoleService {
 
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "Role not found: " + roleId
                         )
                 );

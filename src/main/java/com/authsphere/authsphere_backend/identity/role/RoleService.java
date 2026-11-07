@@ -1,5 +1,6 @@
 package com.authsphere.authsphere_backend.identity.role;
 
+import com.authsphere.authsphere_backend.core.exception.ResourceNotFoundException;
 import com.authsphere.authsphere_backend.identity.permission.Permission;
 import com.authsphere.authsphere_backend.identity.permission.PermissionRepository;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -35,7 +37,7 @@ public class RoleService {
         }
 
         String normalizedName =
-                name.trim().toUpperCase();
+                name.trim().toUpperCase(Locale.ROOT);
 
         if (roleRepository.existsByName(normalizedName)) {
             throw new IllegalArgumentException(
@@ -72,7 +74,7 @@ public class RoleService {
 
         return roleRepository.findById(roleId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "Role not found: " + roleId
                         )
                 );
@@ -123,7 +125,7 @@ public class RoleService {
 
         Permission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "Permission not found: " + permissionId
                         )
                 );
@@ -146,7 +148,7 @@ public class RoleService {
 
         Permission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "Permission not found: " + permissionId
                         )
                 );

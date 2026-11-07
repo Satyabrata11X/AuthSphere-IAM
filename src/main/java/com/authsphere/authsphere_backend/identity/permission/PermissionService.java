@@ -1,5 +1,6 @@
 package com.authsphere.authsphere_backend.identity.permission;
 
+import com.authsphere.authsphere_backend.core.exception.ResourceNotFoundException;
 import com.authsphere.authsphere_backend.identity.role.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -67,17 +68,18 @@ public class PermissionService {
     // GET PERMISSION
     // =========================================================
 
+
     @Transactional(readOnly = true)
     public Permission getPermission(UUID permissionId) {
 
         return permissionRepository.findById(permissionId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Permission not found: "
-                                        + permissionId
+                        new ResourceNotFoundException(
+                                "Permission not found: " + permissionId
                         )
                 );
     }
+
 
 
     // =========================================================

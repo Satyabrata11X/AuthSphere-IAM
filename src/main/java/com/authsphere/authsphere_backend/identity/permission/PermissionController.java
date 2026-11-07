@@ -1,6 +1,7 @@
 package com.authsphere.authsphere_backend.identity.permission;
 
 import com.authsphere.authsphere_backend.identity.permission.dto.CreatePermissionRequest;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/permissions")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class PermissionController {
 
     private final PermissionService permissionService;
