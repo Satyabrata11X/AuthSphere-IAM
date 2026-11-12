@@ -1,3 +1,4 @@
+
 package com.authsphere.authsphere_backend.identity.auth.service.impl;
 
 import com.authsphere.authsphere_backend.core.common.ApiResponse;
@@ -56,10 +57,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
+    // =========================================================
+    // USER REGISTRATION
+    // =========================================================
 
     @Override
-    public ApiResponse<RegisterResponse> register(
-            RegisterRequest request) {
+    public ApiResponse<RegisterResponse> register(RegisterRequest request) {
 
         // 1. Check if email already exists
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -121,6 +124,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+    // =========================================================
+    // USER LOGIN
+    // =========================================================
 
     @Override
     public ApiResponse<LoginResponse> login(
@@ -196,17 +202,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             );
         }
 
-        // 9. Record successful password authentication
-        loginAttemptService.recordAttempt(
-                user,
-                true,
-                ipAddress
-        );
-
-        // 10. Reset failed login attempts
-        accountLockoutService.recordSuccessfulLogin(user);
-
-        // 11. Check whether MFA is enabled
+        // 9. Check whether MFA is enabled
         if (user.isMfaEnabled()) {
 
             // Create temporary MFA challenge
@@ -225,16 +221,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .build();
         }
 
-        // 12. Record complete login success
-        securityEventService.recordEvent(
-                user,
-                SecurityEventType.LOGIN_SUCCESS,
-                true,
-                ipAddress,
-                "User logged in successfully"
-        );
-
-        // 13. Create authenticated session
+        // 10. Create authenticated session
         LocalDateTime sessionExpiresAt =
                 LocalDateTime.now()
                         .plus(Duration.ofMillis(jwtExpiration));
@@ -247,19 +234,39 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                         sessionExpiresAt
                 );
 
-        // 14. Generate JWT
+        // 11. Generate JWT
         String accessToken =
                 jwtService.generateToken(
                         user,
                         session.getId()
                 );
 
+        // 12. Record successful login attempt
+        loginAttemptService.recordAttempt(
+                user,
+                true,
+                ipAddress
+        );
+
+        // 13. Record successful security event
+        securityEventService.recordEvent(
+                user,
+                SecurityEventType.LOGIN_SUCCESS,
+                true,
+                ipAddress,
+                "User logged in successfully"
+        );
+
+        // 14. Reset failed login attempts
+        accountLockoutService.recordSuccessfulLogin(user);
+
+        // 15. Prepare response
         LoginResponse response =
                 LoginResponse.builder()
                         .accessToken(accessToken)
                         .build();
 
-        // 15. Return successful login response
+        // 16. Return successful login response
         return ApiResponse.<LoginResponse>builder()
                 .success(true)
                 .status(ApiStatus.SUCCESS)
@@ -268,6 +275,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+    // =========================================================
+    // CHANGE PASSWORD
+    // =========================================================
 
     @Override
     public ApiResponse<Void> changePassword(
@@ -326,10 +336,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+    // =========================================================
+    // FORGOT PASSWORD
+    // =========================================================
 
     @Override
-    public ApiResponse<Void> forgotPassword(
-            String email) {
+    public ApiResponse<Void> forgotPassword(String email) {
 
         userRepository.findByEmail(email)
                 .ifPresent(
@@ -346,6 +358,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+    // =========================================================
+    // RESET PASSWORD
+    // =========================================================
 
     @Override
     public ApiResponse<Void> resetPassword(
@@ -364,10 +379,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+    // =========================================================
+    // VALIDATE RESET TOKEN
+    // =========================================================
 
     @Override
-    public ApiResponse<Void> validateResetToken(
-            String token) {
+    public ApiResponse<Void> validateResetToken(String token) {
 
         passwordResetService.validateResetToken(token);
 
@@ -378,6 +395,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+    // =========================================================
+    // LOGOUT
+    // =========================================================
 
     @Override
     public ApiResponse<Void> logout(
@@ -401,10 +421,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+    // =========================================================
+    // LOGOUT FROM ALL SESSIONS
+    // =========================================================
 
     @Override
-    public ApiResponse<Void> logoutAll(
-            User user) {
+    public ApiResponse<Void> logoutAll(User user) {
 
         // Revoke all active sessions
         sessionService.revokeAllSessions(user);

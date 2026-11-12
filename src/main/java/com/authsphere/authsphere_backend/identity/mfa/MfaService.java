@@ -1,7 +1,11 @@
+
 package com.authsphere.authsphere_backend.identity.mfa;
 
 import com.authsphere.authsphere_backend.core.exception.InvalidCredentialsException;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
+import com.authsphere.authsphere_backend.identity.auth.security.LoginAttemptService;
+import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventService;
+import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventType;
 import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
 import com.authsphere.authsphere_backend.identity.mfa.dto.request.MfaLoginVerifyRequest;
 import com.authsphere.authsphere_backend.identity.mfa.dto.response.MfaSetupResponse;
@@ -9,9 +13,11 @@ import com.authsphere.authsphere_backend.identity.session.Session;
 import com.authsphere.authsphere_backend.identity.session.SessionService;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
+
 import dev.samstevens.totp.qr.QrData;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -28,12 +34,13 @@ public class MfaService {
     private final MfaChallengeService mfaChallengeService;
     private final JwtService jwtService;
     private final SessionService sessionService;
+    private final LoginAttemptService loginAttemptService;
+    private final SecurityEventService securityEventService;
 
     private static final String ISSUER = "AuthSphere";
 
     @Value("${jwt.expiration}")
     private long jwtExpiration;
-
 
     /**
      * Starts MFA setup for the authenticated user.
@@ -45,7 +52,6 @@ public class MfaService {
                         .findByUser(user)
                         .orElse(null);
 
-        // Prevent setup if MFA is already enabled
         if (existingConfiguration != null
                 && existingConfiguration.isEnabled()) {
 
@@ -54,20 +60,17 @@ public class MfaService {
             );
         }
 
-        // Generate a new TOTP secret
-        String secret =
-                totpService.generateSecret();
+        String secret = totpService.generateSecret();
 
         MfaConfiguration configuration;
 
         if (existingConfiguration == null) {
 
-            configuration =
-                    MfaConfiguration.builder()
-                            .user(user)
-                            .secret(secret)
-                            .enabled(false)
-                            .build();
+            configuration = MfaConfiguration.builder()
+                    .user(user)
+                    .secret(secret)
+                    .enabled(false)
+                    .build();
 
         } else {
 
@@ -77,19 +80,15 @@ public class MfaService {
             configuration = existingConfiguration;
         }
 
-        // Save MFA configuration
         mfaConfigurationRepository.save(configuration);
 
-        // Generate standard otpauth URI
-        QrData qrData =
-                new QrData.Builder()
-                        .label(user.getEmail())
-                        .secret(secret)
-                        .issuer(ISSUER)
-                        .build();
+        QrData qrData = new QrData.Builder()
+                .label(user.getEmail())
+                .secret(secret)
+                .issuer(ISSUER)
+                .build();
 
-        String otpauthUri =
-                qrData.getUri();
+        String otpauthUri = qrData.getUri();
 
         return MfaSetupResponse.builder()
                 .secret(secret)
@@ -99,13 +98,10 @@ public class MfaService {
                 .build();
     }
 
-
     /**
      * Enables MFA after verifying the user's TOTP code.
      */
-    public void enableMfa(
-            User user,
-            String code) {
+    public void enableMfa(User user, String code) {
 
         MfaConfiguration configuration =
                 mfaConfigurationRepository
@@ -116,7 +112,6 @@ public class MfaService {
                                 )
                         );
 
-        // Prevent enabling an already enabled configuration
         if (configuration.isEnabled()) {
 
             throw new IllegalStateException(
@@ -124,12 +119,10 @@ public class MfaService {
             );
         }
 
-        // Verify the TOTP code
-        boolean validCode =
-                totpService.verifyCode(
-                        configuration.getSecret(),
-                        code
-                );
+        boolean validCode = totpService.verifyCode(
+                configuration.getSecret(),
+                code
+        );
 
         if (!validCode) {
 
@@ -138,39 +131,29 @@ public class MfaService {
             );
         }
 
-        // Enable MFA configuration
         configuration.setEnabled(true);
 
         mfaConfigurationRepository.save(configuration);
 
-        // Synchronize MFA status on User
         user.setMfaEnabled(true);
 
-        // Explicitly persist User
         userRepository.save(user);
     }
 
-
     /**
      * Verifies MFA during login and issues the real JWT.
-     *
-     * The user must provide:
-     * 1. A valid temporary MFA challenge token
-     * 2. A valid 6-digit TOTP code
      */
     public LoginResponse verifyLoginMfa(
             MfaLoginVerifyRequest request,
             HttpServletRequest httpRequest) {
 
         // 1. Get the temporary MFA challenge token
-        String challengeToken =
-                request.getChallengeToken();
+        String challengeToken = request.getChallengeToken();
 
         // 2. Resolve the user from the challenge
-        User user =
-                mfaChallengeService.getUserFromChallenge(
-                        challengeToken
-                );
+        User user = mfaChallengeService.getUserFromChallenge(
+                challengeToken
+        );
 
         // 3. Find MFA configuration
         MfaConfiguration configuration =
@@ -182,7 +165,7 @@ public class MfaService {
                                 )
                         );
 
-        // 4. Make sure MFA is actually enabled
+        // 4. Verify MFA is enabled
         if (!configuration.isEnabled()
                 || !user.isMfaEnabled()) {
 
@@ -191,54 +174,79 @@ public class MfaService {
             );
         }
 
-        // 5. Verify the 6-digit TOTP code
-        boolean validCode =
-                totpService.verifyCode(
-                        configuration.getSecret(),
-                        request.getCode()
-                );
+        // 5. Get request information
+        String ipAddress = httpRequest.getRemoteAddr();
 
+        String userAgent = httpRequest.getHeader("User-Agent");
+
+        // 6. Verify the TOTP code
+        boolean validCode = totpService.verifyCode(
+                configuration.getSecret(),
+                request.getCode()
+        );
+
+        // 7. Record failed MFA verification
         if (!validCode) {
+
+            loginAttemptService.recordAttempt(
+                    user,
+                    false,
+                    ipAddress
+            );
+
+            securityEventService.recordEvent(
+                    user,
+                    SecurityEventType.LOGIN_FAILED,
+                    false,
+                    ipAddress,
+                    "Invalid MFA verification code"
+            );
 
             throw new InvalidCredentialsException(
                     "Invalid MFA verification code."
             );
         }
 
-        // 6. Get request information
-        String ipAddress =
-                httpRequest.getRemoteAddr();
-
-        String userAgent =
-                httpRequest.getHeader("User-Agent");
-
-        // 7. Calculate session expiration
+        // 8. Calculate session expiration
         LocalDateTime sessionExpiresAt =
                 LocalDateTime.now()
                         .plus(Duration.ofMillis(jwtExpiration));
 
-        // 8. Create authenticated session
-        Session session =
-                sessionService.createSession(
-                        user,
-                        ipAddress,
-                        userAgent,
-                        sessionExpiresAt
-                );
+        // 9. Create authenticated session
+        Session session = sessionService.createSession(
+                user,
+                ipAddress,
+                userAgent,
+                sessionExpiresAt
+        );
 
-        // 9. Generate the real JWT
-        String accessToken =
-                jwtService.generateToken(
-                        user,
-                        session.getId()
-                );
+        // 10. Generate the real JWT
+        String accessToken = jwtService.generateToken(
+                user,
+                session.getId()
+        );
 
-        // 10. Invalidate the temporary challenge
+        // 11. Record successful MFA login
+        loginAttemptService.recordAttempt(
+                user,
+                true,
+                ipAddress
+        );
+
+        securityEventService.recordEvent(
+                user,
+                SecurityEventType.LOGIN_SUCCESS,
+                true,
+                ipAddress,
+                "User logged in successfully using MFA"
+        );
+
+        // 12. Invalidate the temporary challenge
         mfaChallengeService.removeChallenge(
                 challengeToken
         );
 
-        // 11. Return the real access token
+        // 13. Return the real access token
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .build();
