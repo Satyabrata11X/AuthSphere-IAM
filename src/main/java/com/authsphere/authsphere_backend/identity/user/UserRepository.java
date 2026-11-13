@@ -234,4 +234,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     ORDER BY r.name
 """)
     List<Object[]> findDashboardUsersByRole();
+
+
+    @Query("""
+    SELECT COUNT(u)
+    FROM User u
+    WHERE u.deleted = false
+      AND u.lockedUntil IS NOT NULL
+      AND u.lockedUntil > :now
+""")
+    long countDashboardCurrentlyLockedUsers(
+            LocalDateTime now
+    );
+
 }

@@ -77,8 +77,8 @@ public class SuperAdminDashboardService {
                 );
 
         long lockedUsers =
-                userRepository.countDashboardUsersByAccountStatus(
-                        AccountStatus.LOCKED
+                userRepository.countDashboardCurrentlyLockedUsers(
+                        LocalDateTime.now()
                 );
 
         long suspendedUsers =

@@ -173,7 +173,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     ipAddress
             );
 
-            accountLockoutService.recordFailedLogin(user);
+            accountLockoutService.recordFailedLogin(user, ipAddress);
 
             securityEventService.recordEvent(
                     user,

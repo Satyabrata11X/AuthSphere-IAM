@@ -3,6 +3,7 @@ package com.authsphere.authsphere_backend.identity.mfa;
 
 import com.authsphere.authsphere_backend.core.exception.InvalidCredentialsException;
 import com.authsphere.authsphere_backend.identity.auth.dto.response.LoginResponse;
+import com.authsphere.authsphere_backend.identity.auth.security.AccountLockoutService;
 import com.authsphere.authsphere_backend.identity.auth.security.LoginAttemptService;
 import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventService;
 import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventType;
@@ -36,6 +37,7 @@ public class MfaService {
     private final SessionService sessionService;
     private final LoginAttemptService loginAttemptService;
     private final SecurityEventService securityEventService;
+    private final AccountLockoutService accountLockoutService;
 
     private static final String ISSUER = "AuthSphere";
 
@@ -147,15 +149,25 @@ public class MfaService {
             MfaLoginVerifyRequest request,
             HttpServletRequest httpRequest) {
 
-        // 1. Get the temporary MFA challenge token
+        // 1. Get temporary MFA challenge token
         String challengeToken = request.getChallengeToken();
 
-        // 2. Resolve the user from the challenge
+        // 2. Resolve user from challenge
         User user = mfaChallengeService.getUserFromChallenge(
                 challengeToken
         );
 
-        // 3. Find MFA configuration
+        // 3. Check account lockout
+        if (accountLockoutService.isAccountLocked(user)) {
+
+            mfaChallengeService.removeChallenge(challengeToken);
+
+            throw new InvalidCredentialsException(
+                    "Account is temporarily locked. Please try again later."
+            );
+        }
+
+        // 4. Find MFA configuration
         MfaConfiguration configuration =
                 mfaConfigurationRepository
                         .findByUser(user)
@@ -165,7 +177,7 @@ public class MfaService {
                                 )
                         );
 
-        // 4. Verify MFA is enabled
+        // 5. Verify MFA is enabled
         if (!configuration.isEnabled()
                 || !user.isMfaEnabled()) {
 
@@ -174,18 +186,18 @@ public class MfaService {
             );
         }
 
-        // 5. Get request information
+        // 6. Get request information
         String ipAddress = httpRequest.getRemoteAddr();
 
         String userAgent = httpRequest.getHeader("User-Agent");
 
-        // 6. Verify the TOTP code
+        // 7. Verify TOTP code
         boolean validCode = totpService.verifyCode(
                 configuration.getSecret(),
                 request.getCode()
         );
 
-        // 7. Record failed MFA verification
+        // 8. Handle failed MFA verification
         if (!validCode) {
 
             loginAttemptService.recordAttempt(
@@ -193,6 +205,8 @@ public class MfaService {
                     false,
                     ipAddress
             );
+
+            accountLockoutService.recordFailedLogin(user, ipAddress);
 
             securityEventService.recordEvent(
                     user,
@@ -202,17 +216,27 @@ public class MfaService {
                     "Invalid MFA verification code"
             );
 
+            // Check whether this failure triggered lockout
+            if (accountLockoutService.isAccountLocked(user)) {
+
+                mfaChallengeService.removeChallenge(challengeToken);
+
+                throw new InvalidCredentialsException(
+                        "Account is temporarily locked. Please try again later."
+                );
+            }
+
             throw new InvalidCredentialsException(
                     "Invalid MFA verification code."
             );
         }
 
-        // 8. Calculate session expiration
+        // 9. Calculate session expiration
         LocalDateTime sessionExpiresAt =
                 LocalDateTime.now()
                         .plus(Duration.ofMillis(jwtExpiration));
 
-        // 9. Create authenticated session
+        // 10. Create authenticated session
         Session session = sessionService.createSession(
                 user,
                 ipAddress,
@@ -220,19 +244,20 @@ public class MfaService {
                 sessionExpiresAt
         );
 
-        // 10. Generate the real JWT
+        // 11. Generate real JWT
         String accessToken = jwtService.generateToken(
                 user,
                 session.getId()
         );
 
-        // 11. Record successful MFA login
+        // 12. Record successful MFA login attempt
         loginAttemptService.recordAttempt(
                 user,
                 true,
                 ipAddress
         );
 
+        // 13. Record successful security event
         securityEventService.recordEvent(
                 user,
                 SecurityEventType.LOGIN_SUCCESS,
@@ -241,12 +266,13 @@ public class MfaService {
                 "User logged in successfully using MFA"
         );
 
-        // 12. Invalidate the temporary challenge
-        mfaChallengeService.removeChallenge(
-                challengeToken
-        );
+        // 14. Reset lockout after complete authentication
+        accountLockoutService.recordSuccessfulLogin(user);
 
-        // 13. Return the real access token
+        // 15. Invalidate temporary MFA challenge
+        mfaChallengeService.removeChallenge(challengeToken);
+
+        // 16. Return access token
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .build();
