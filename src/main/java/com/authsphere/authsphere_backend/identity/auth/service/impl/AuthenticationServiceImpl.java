@@ -19,6 +19,7 @@ import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventSer
 import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventType;
 import com.authsphere.authsphere_backend.identity.auth.service.AuthenticationService;
 import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
+import com.authsphere.authsphere_backend.identity.company.CompanyAccessService;
 import com.authsphere.authsphere_backend.identity.mfa.MfaChallengeService;
 import com.authsphere.authsphere_backend.identity.session.Session;
 import com.authsphere.authsphere_backend.identity.session.SessionService;
@@ -53,6 +54,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final SecurityEventService securityEventService;
     private final SessionService sessionService;
     private final MfaChallengeService mfaChallengeService;
+    private final CompanyAccessService companyAccessService;
 
     @Value("${jwt.expiration}")
     private long jwtExpiration;
@@ -199,6 +201,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (user.getAccountStatus() != AccountStatus.ACTIVE) {
             throw new InvalidCredentialsException(
                     "Your account is not active."
+            );
+        }
+
+        // 8.5. Check company status
+        try {
+            companyAccessService.validateCompanyAccess(user);
+        } catch (IllegalStateException exception) {
+            throw new InvalidCredentialsException(
+                    "Login is unavailable because your company is not active."
             );
         }
 
