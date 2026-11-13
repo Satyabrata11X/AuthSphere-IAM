@@ -1,16 +1,21 @@
+
 package com.authsphere.authsphere_backend.identity.auth.security;
 
 import com.authsphere.authsphere_backend.identity.auth.service.JwtService;
 import com.authsphere.authsphere_backend.identity.role.RbacAuthorityService;
 import com.authsphere.authsphere_backend.identity.session.Session;
 import com.authsphere.authsphere_backend.identity.session.SessionService;
+import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,11 +32,8 @@ import java.util.UUID;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-
     private final UserRepository userRepository;
-
     private final SessionService sessionService;
-
     private final RbacAuthorityService rbacAuthorityService;
 
     @Override
@@ -43,144 +45,133 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        System.out.println(
-                "JWT DEBUG: " + request.getMethod()
-                        + " " + request.getRequestURI()
-                        + " | Authorization header present: "
-                        + (authHeader != null)
-                        + " | Current authentication: "
-                        + SecurityContextHolder.getContext().getAuthentication()
-        );
-
         // =====================================================
         // NO JWT
         // =====================================================
 
-        if (authHeader == null
-                || !authHeader.startsWith("Bearer ")) {
-
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        // =====================================================
-        // EXTRACT JWT
-        // =====================================================
 
         String jwt = authHeader.substring(7);
 
         try {
 
             // =================================================
-            // EXTRACT USERNAME FROM JWT
+            // EXTRACT USERNAME
             // =================================================
 
             String username = jwtService.extractUsername(jwt);
 
-            if (username != null
-                    && SecurityContextHolder
-                    .getContext()
-                    .getAuthentication() == null) {
+            if (username == null ||
+                    SecurityContextHolder.getContext().getAuthentication() != null) {
 
-                // =============================================
-                // FIND USER
-                // =============================================
-
-                Optional<User> optionalUser =
-                        userRepository.findByEmail(username);
-
-                if (optionalUser.isPresent()) {
-
-                    User user = optionalUser.get();
-
-                    // =========================================
-                    // VALIDATE JWT
-                    // =========================================
-
-                    if (jwtService.isTokenValid(jwt, user)) {
-
-                        // =====================================
-                        // EXTRACT SESSION
-                        // =====================================
-
-                        UUID sessionId =
-                                jwtService.extractSessionId(jwt);
-
-                        Session session =
-                                sessionService.getSession(sessionId);
-
-                        // =====================================
-                        // VALIDATE SESSION
-                        // =====================================
-
-                        if (session != null
-                                && sessionService
-                                .isSessionActive(session)) {
-
-                            // =================================
-                            // UPDATE SESSION ACTIVITY
-                            // =================================
-
-                            sessionService
-                                    .updateLastActivity(session);
-
-                            // =================================
-                            // LOAD RBAC AUTHORITIES
-                            // =================================
-
-                            Collection<SimpleGrantedAuthority>
-                                    authorities =
-                                    rbacAuthorityService
-                                            .getAuthorities(user);
-
-                            // =================================
-                            // CREATE AUTHENTICATION
-                            // =================================
-
-                            UsernamePasswordAuthenticationToken
-                                    authenticationToken =
-                                    new UsernamePasswordAuthenticationToken(
-                                            user,
-                                            null,
-                                            authorities
-                                    );
-
-                            // =================================
-                            // STORE AUTHENTICATION
-                            // =================================
-
-                            SecurityContextHolder
-                                    .getContext()
-                                    .setAuthentication(
-                                            authenticationToken
-                                    );
-                        }
-                    }
-                }
+                filterChain.doFilter(request, response);
+                return;
             }
+
+            // =================================================
+            // FIND USER
+            // =================================================
+
+            Optional<User> optionalUser =
+                    userRepository.findByEmail(username);
+
+            if (optionalUser.isEmpty()) {
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            User user = optionalUser.get();
+
+            // =================================================
+            // VALIDATE ACCOUNT STATUS
+            // =================================================
+
+            if (user.isDeleted()
+                    || user.getAccountStatus() != AccountStatus.ACTIVE) {
+
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // =================================================
+            // VALIDATE JWT
+            // =================================================
+
+            if (!jwtService.isTokenValid(jwt, user)) {
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // =================================================
+            // EXTRACT SESSION ID
+            // =================================================
+
+            UUID sessionId = jwtService.extractSessionId(jwt);
+
+            if (sessionId == null) {
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // =================================================
+            // FIND SESSION
+            // =================================================
+
+            Session session = sessionService.getSession(sessionId);
+
+            // =================================================
+            // VALIDATE SESSION
+            // =================================================
+
+            if (session == null || !sessionService.isSessionActive(session)) {
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // =================================================
+            // UPDATE SESSION ACTIVITY
+            // =================================================
+
+            sessionService.updateLastActivity(session);
+
+            // =================================================
+            // LOAD RBAC AUTHORITIES
+            // =================================================
+
+            Collection<SimpleGrantedAuthority> authorities =
+                    rbacAuthorityService.getAuthorities(user);
+
+            // =================================================
+            // CREATE AUTHENTICATION
+            // =================================================
+
+            UsernamePasswordAuthenticationToken authenticationToken =
+                    new UsernamePasswordAuthenticationToken(
+                            user,
+                            null,
+                            authorities
+                    );
+
+            // =================================================
+            // SET SECURITY CONTEXT
+            // =================================================
+
+            SecurityContextHolder.getContext()
+                    .setAuthentication(authenticationToken);
 
         } catch (Exception e) {
 
-            // =================================================
-            // TEMPORARY DEBUGGING
-            // =================================================
+            // Reject authentication if JWT processing fails.
+            SecurityContextHolder.clearContext();
 
-            System.err.println(
-                    "========== JWT AUTHENTICATION ERROR =========="
-            );
-
-            System.err.println(
-                    "Request: "
-                            + request.getMethod()
-                            + " "
-                            + request.getRequestURI()
-            );
-
-            e.printStackTrace();
-
-            System.err.println(
-                    "=============================================="
-            );
         }
 
         // =====================================================

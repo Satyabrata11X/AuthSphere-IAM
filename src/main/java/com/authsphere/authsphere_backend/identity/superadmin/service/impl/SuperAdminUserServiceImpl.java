@@ -9,6 +9,7 @@ import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
 import com.authsphere.authsphere_backend.identity.session.SessionService;
+import com.authsphere.authsphere_backend.core.exception.BusinessConflictException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -210,13 +211,13 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
         preventSuperAdminModification(user, superAdminId);
 
         if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
-            throw new IllegalStateException(
+            throw new 	BusinessConflictException(
                     "User is already suspended."
             );
         }
 
         if (user.getAccountStatus() != AccountStatus.ACTIVE) {
-            throw new IllegalStateException(
+            throw new 	BusinessConflictException(
                     "Only active users can be suspended."
             );
         }
@@ -242,7 +243,7 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
         preventSuperAdminModification(user, superAdminId);
 
         if (user.getAccountStatus() != AccountStatus.SUSPENDED) {
-            throw new IllegalStateException(
+            throw new 	BusinessConflictException(
                     "Only suspended users can be activated."
             );
         }
@@ -296,7 +297,7 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
     ) {
 
         if (targetUser.getId().equals(superAdminId)) {
-            throw new IllegalStateException(
+            throw new 	BusinessConflictException(
                     "You cannot modify your own SuperAdmin account."
             );
         }
@@ -308,7 +309,7 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
                 );
 
         if (isSuperAdmin) {
-            throw new IllegalStateException(
+            throw new 	BusinessConflictException(
                     "SuperAdmin accounts cannot be modified through this operation."
             );
         }

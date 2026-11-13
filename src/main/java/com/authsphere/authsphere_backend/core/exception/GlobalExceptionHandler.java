@@ -142,4 +142,22 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+
+
+    @ExceptionHandler(BusinessConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBusinessConflictException(
+            BusinessConflictException exception) {
+
+        ApiResponse<Void> response = ApiResponse.<Void>builder()
+                .success(false)
+                .status(ApiStatus.ERROR)
+                .message(exception.getMessage())
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+
 }
