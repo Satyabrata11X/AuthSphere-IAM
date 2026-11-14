@@ -8,6 +8,8 @@ import com.authsphere.authsphere_backend.identity.session.SessionService;
 import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
+import com.authsphere.authsphere_backend.identity.company.CompanyAccessService;
+import com.authsphere.authsphere_backend.identity.company.CompanyStatus;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -35,6 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
     private final SessionService sessionService;
     private final RbacAuthorityService rbacAuthorityService;
+    private final CompanyAccessService companyAccessService;
 
     @Override
     protected void doFilterInternal(
@@ -92,6 +95,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (user.isDeleted()
                     || user.getAccountStatus() != AccountStatus.ACTIVE) {
+
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+            // VALIDATE COMPANY STATUS
+            try {
+                companyAccessService.validateCompanyAccess(user);
+            } catch (IllegalStateException exception) {
 
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);

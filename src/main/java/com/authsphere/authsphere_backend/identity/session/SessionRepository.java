@@ -80,4 +80,22 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
             @Param("status") SessionStatus status,
             @Param("currentTime") LocalDateTime currentTime
     );
+
+
+    @Query("""
+    SELECT COUNT(s)
+    FROM Session s
+    JOIN s.user u
+    WHERE u.company.id = :companyId
+      AND u.deleted = false
+      AND s.status = :status
+      AND s.expiresAt > :currentTime
+      AND s.revokedAt IS NULL
+      AND s.deleted = false
+""")
+    long countValidCompanySessions(
+            @Param("companyId") UUID companyId,
+            @Param("status") SessionStatus status,
+            @Param("currentTime") LocalDateTime currentTime
+    );
 }

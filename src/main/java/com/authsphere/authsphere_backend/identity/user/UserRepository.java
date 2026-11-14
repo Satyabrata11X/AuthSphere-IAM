@@ -45,6 +45,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     );
 
     List<User> findByCompany(Company company);
+    List<User> findByCompanyAndDeletedFalse(Company company);
 
 
     // =========================================================
@@ -285,6 +286,70 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     """)
     Optional<User> findActiveUserDetailsById(
             @Param("userId") UUID userId
+    );
+
+
+    // =========================================================
+// SUPERADMIN COMPANY STATISTICS
+// =========================================================
+
+    @Query("""
+    SELECT COUNT(u)
+    FROM User u
+    WHERE u.company.id = :companyId
+      AND u.deleted = false
+""")
+    long countActiveCompanyRecords(
+            @Param("companyId") UUID companyId
+    );
+
+    @Query("""
+    SELECT COUNT(u)
+    FROM User u
+    WHERE u.company.id = :companyId
+      AND u.deleted = false
+      AND u.accountStatus = :status
+""")
+    long countCompanyUsersByStatus(
+            @Param("companyId") UUID companyId,
+            @Param("status") AccountStatus status
+    );
+
+    @Query("""
+    SELECT COUNT(DISTINCT u.id)
+    FROM User u
+    JOIN u.roles r
+    WHERE u.company.id = :companyId
+      AND u.deleted = false
+      AND r.name = 'ADMIN'
+""")
+    long countActiveCompanyAdministrators(
+            @Param("companyId") UUID companyId
+    );
+
+    // =========================================================
+// SUPERADMIN COMPANY USER LIST
+// =========================================================
+
+    @Query(
+            value = """
+        SELECT DISTINCT u
+        FROM User u
+        LEFT JOIN u.roles r
+        WHERE u.company.id = :companyId
+          AND u.deleted = false
+        ORDER BY u.createdAt DESC
+        """,
+            countQuery = """
+        SELECT COUNT(u)
+        FROM User u
+        WHERE u.company.id = :companyId
+          AND u.deleted = false
+        """
+    )
+    Page<User> findSuperAdminCompanyUsers(
+            @Param("companyId") UUID companyId,
+            Pageable pageable
     );
 
 }

@@ -1,8 +1,10 @@
 package com.authsphere.authsphere_backend.identity.session;
 
 import com.authsphere.authsphere_backend.identity.user.User;
+import com.authsphere.authsphere_backend.identity.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.authsphere.authsphere_backend.identity.company.Company;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.UUID;
 public class SessionService {
 
     private final SessionRepository sessionRepository;
+    private final UserRepository userRepository;
 
     public Session createSession(
             User user,
@@ -120,5 +123,15 @@ public class SessionService {
         session.setLastActivityAt(LocalDateTime.now());
 
         sessionRepository.save(session);
+    }
+
+    public void revokeAllCompanySessions(Company company) {
+
+        List<User> companyUsers =
+                userRepository.findByCompanyAndDeletedFalse(company);
+
+        for (User user : companyUsers) {
+            revokeAllSessions(user);
+        }
     }
 }

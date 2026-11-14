@@ -14,6 +14,9 @@ import com.authsphere.authsphere_backend.identity.session.Session;
 import com.authsphere.authsphere_backend.identity.session.SessionService;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
+import com.authsphere.authsphere_backend.identity.company.CompanyAccessService;
+import com.authsphere.authsphere_backend.identity.user.AccountStatus;
+
 
 import dev.samstevens.totp.qr.QrData;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,6 +41,8 @@ public class MfaService {
     private final LoginAttemptService loginAttemptService;
     private final SecurityEventService securityEventService;
     private final AccountLockoutService accountLockoutService;
+    private final CompanyAccessService companyAccessService;
+
 
     private static final String ISSUER = "AuthSphere";
 
@@ -228,6 +233,29 @@ public class MfaService {
 
             throw new InvalidCredentialsException(
                     "Invalid MFA verification code."
+            );
+        }
+
+        // 9. Validate individual account status
+        if (user.isDeleted()
+                || user.getAccountStatus() != AccountStatus.ACTIVE) {
+
+            mfaChallengeService.removeChallenge(challengeToken);
+
+            throw new InvalidCredentialsException(
+                    "Your account is not active."
+            );
+        }
+
+// 10. Validate company status
+        try {
+            companyAccessService.validateCompanyAccess(user);
+        } catch (IllegalStateException exception) {
+
+            mfaChallengeService.removeChallenge(challengeToken);
+
+            throw new InvalidCredentialsException(
+                    "Login is unavailable because your company is not active."
             );
         }
 

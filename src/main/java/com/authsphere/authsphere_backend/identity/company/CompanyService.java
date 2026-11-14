@@ -3,6 +3,7 @@ package com.authsphere.authsphere_backend.identity.company;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.authsphere.authsphere_backend.identity.session.SessionService;
 
 import java.util.List;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import java.util.UUID;
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
+    private final SessionService sessionService;
 
     /*
      * Create a new company.
@@ -118,7 +120,6 @@ public class CompanyService {
             UUID companyId,
             CompanyStatus status
     ) {
-
         if (status == null) {
             throw new IllegalArgumentException(
                     "Company status is required."
@@ -127,9 +128,20 @@ public class CompanyService {
 
         Company company = getCompany(companyId);
 
+        CompanyStatus previousStatus = company.getStatus();
+
         company.setStatus(status);
 
-        return companyRepository.save(company);
+        Company updatedCompany = companyRepository.save(company);
+
+        // Revoke all company sessions when suspension occurs.
+        if (status == CompanyStatus.SUSPENDED
+                && previousStatus != CompanyStatus.SUSPENDED) {
+
+            sessionService.revokeAllCompanySessions(company);
+        }
+
+        return updatedCompany;
     }
 
     /*

@@ -1,163 +1,173 @@
+
 package com.authsphere.authsphere_backend.core.exception;
 
 import com.authsphere.authsphere_backend.core.common.ApiResponse;
 import com.authsphere.authsphere_backend.core.common.ApiStatus;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ApiResponse<Void> handleEmailAlreadyExistsException(
-            EmailAlreadyExistsException exception) {
+    // =========================================================
+    // AUTHENTICATION EXCEPTIONS
+    // =========================================================
 
-        return ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
+    @ExceptionHandler({
+            InvalidCredentialsException.class,
+            InvalidMfaChallengeException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleUnauthorized(
+            RuntimeException exception) {
+
+        return buildResponse(
+                HttpStatus.UNAUTHORIZED,
+                exception.getMessage()
+        );
     }
 
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ApiResponse<Void> handleInvalidCredentialsException(
-            InvalidCredentialsException exception) {
-
-        return ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
-    }
-
-    @ExceptionHandler(InvalidVerificationTokenException.class)
-    public ApiResponse<Void> handleInvalidVerificationTokenException(
-            InvalidVerificationTokenException exception) {
-
-        return ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
-    }
-
-    @ExceptionHandler(VerificationTokenExpiredException.class)
-    public ApiResponse<Void> handleVerificationTokenExpiredException(
-            VerificationTokenExpiredException exception) {
-
-        return ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
-    }
-
-    @ExceptionHandler(PasswordSameAsOldException.class)
-    public ApiResponse<Void> handlePasswordSameAsOldException(
-            PasswordSameAsOldException exception) {
-
-        return ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
-    }
-
-    @ExceptionHandler(InvalidPasswordResetTokenException.class)
-    public ApiResponse<Void> handleInvalidPasswordResetTokenException(
-            InvalidPasswordResetTokenException exception) {
-
-        return ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
-    }
-
-    @ExceptionHandler(PasswordResetTokenExpiredException.class)
-    public ApiResponse<Void> handlePasswordResetTokenExpiredException(
-            PasswordResetTokenExpiredException exception) {
-
-        return ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
-    }
-
-    @ExceptionHandler(WeakPasswordException.class)
-    public ApiResponse<Void> handleWeakPasswordException(
-            WeakPasswordException exception) {
-
-        return ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
-    }
-
-    @ExceptionHandler(InvalidMfaChallengeException.class)
-    public ApiResponse<Void> handleInvalidMfaChallengeException(
-            InvalidMfaChallengeException exception) {
-
-        return ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
-    }
-
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(
-            IllegalArgumentException exception) {
-
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(response);
-    }
-
-
+    // =========================================================
+    // RESOURCE NOT FOUND
+    // =========================================================
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleResourceNotFoundException(
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(
             ResourceNotFoundException exception) {
 
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
-                .success(false)
-                .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
-                .build();
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage()
+        );
+    }
+
+    // =========================================================
+    // BUSINESS CONFLICTS
+    // =========================================================
+
+    @ExceptionHandler({
+            EmailAlreadyExistsException.class,
+            BusinessConflictException.class,
+            DataIntegrityViolationException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleConflict(
+            RuntimeException exception) {
+
+        String message = exception instanceof DataIntegrityViolationException
+                ? "A database constraint was violated."
+                : exception.getMessage();
+
+        return buildResponse(HttpStatus.CONFLICT, message);
+    }
+
+    // =========================================================
+    // BAD REQUEST
+    // =========================================================
+
+    @ExceptionHandler({
+            IllegalArgumentException.class,
+            WeakPasswordException.class,
+            PasswordSameAsOldException.class,
+            InvalidVerificationTokenException.class,
+            VerificationTokenExpiredException.class,
+            InvalidPasswordResetTokenException.class,
+            PasswordResetTokenExpiredException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleBadRequest(
+            RuntimeException exception) {
+
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage()
+        );
+    }
+
+    // =========================================================
+    // REQUEST VALIDATION
+    // =========================================================
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidation(
+            MethodArgumentNotValidException exception) {
+
+        String message = exception.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .findFirst()
+                .map(error ->
+                        error.getField() + ": " + error.getDefaultMessage()
+                )
+                .orElse("Request validation failed.");
+
+        return buildResponse(HttpStatus.BAD_REQUEST, message);
+    }
+
+    // =========================================================
+    // INVALID REQUEST PARAMETERS
+    // =========================================================
+
+    @ExceptionHandler({
+            MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class,
+            HttpMessageNotReadableException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleInvalidRequest(
+            Exception exception) {
+
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "Invalid request parameters or request body."
+        );
+    }
+
+    // =========================================================
+    // UNEXPECTED EXCEPTIONS
+    // =========================================================
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnexpectedException(
+            Exception exception) {
+
+        log.error("Unexpected application error", exception);
+
+        return buildResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected internal server error occurred."
+        );
+    }
+
+    // =========================================================
+    // COMMON RESPONSE BUILDER
+    // =========================================================
+
+    private ResponseEntity<ApiResponse<Void>> buildResponse(
+            HttpStatus httpStatus,
+            String message) {
+
+        ApiResponse<Void> response = buildErrorResponse(message);
 
         return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
+                .status(httpStatus)
                 .body(response);
     }
 
+    private ApiResponse<Void> buildErrorResponse(String message) {
 
-
-    @ExceptionHandler(BusinessConflictException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessConflictException(
-            BusinessConflictException exception) {
-
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
+        return ApiResponse.<Void>builder()
                 .success(false)
                 .status(ApiStatus.ERROR)
-                .message(exception.getMessage())
+                .message(message)
+                .data(null)
                 .build();
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(response);
     }
-
-
 }
