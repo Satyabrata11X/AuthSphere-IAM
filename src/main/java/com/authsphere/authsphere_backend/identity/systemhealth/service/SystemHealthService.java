@@ -9,10 +9,10 @@ import com.authsphere.authsphere_backend.identity.systemhealth.dto.SystemMetrics
 import io.micrometer.core.instrument.MeterRegistry;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.boot.actuate.health.HealthComponent;
-import org.springframework.boot.actuate.health.HealthEndpoint;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.availability.ApplicationAvailability;
+import org.springframework.boot.availability.ReadinessState;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -31,11 +31,12 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class SystemHealthService {
 
     private final DataSource dataSource;
-    private final HealthEndpoint healthEndpoint;
+    private final ApplicationAvailability applicationAvailability;
     private final MeterRegistry meterRegistry;
 
     // =====================================================
@@ -44,17 +45,14 @@ public class SystemHealthService {
 
     public SystemHealthResponse getSystemHealth() {
 
-        List<ComponentHealthResponse> components =
-                new ArrayList<>();
+        List<ComponentHealthResponse> components = new ArrayList<>();
 
         components.add(checkApplicationHealth());
         components.add(checkDatabaseHealth());
 
-        String overallStatus =
-                calculateOverallStatus(components);
+        String overallStatus = calculateOverallStatus(components);
 
-        SystemMetricsResponse metrics =
-                collectSystemMetrics();
+        SystemMetricsResponse metrics = collectSystemMetrics();
 
         return new SystemHealthResponse(
                 overallStatus,
@@ -65,7 +63,7 @@ public class SystemHealthService {
     }
 
     // =====================================================
-    // APPLICATION HEALTH - ACTUATOR
+    // APPLICATION READINESS
     // =====================================================
 
     private ComponentHealthResponse checkApplicationHealth() {
@@ -74,43 +72,43 @@ public class SystemHealthService {
 
         try {
 
-            HealthComponent health =
-                    healthEndpoint.health();
+            ReadinessState readinessState =
+                    applicationAvailability.getReadinessState();
 
-            long responseTime =
-                    TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - startTime
-                    );
+            long responseTime = TimeUnit.NANOSECONDS.toMillis(
+                    System.nanoTime() - startTime
+            );
 
-            Status status = health.getStatus();
+            log.info(
+                    "APPLICATION READINESS | State: {}",
+                    readinessState
+            );
 
-            String statusValue = status.getCode();
+            if (ReadinessState.ACCEPTING_TRAFFIC.equals(readinessState)) {
 
-            String message;
-
-            if (Status.UP.equals(status)) {
-                message = "Application health checks passed";
-            } else if (Status.DOWN.equals(status)) {
-                message = "Application health check failed";
-            } else if (Status.OUT_OF_SERVICE.equals(status)) {
-                message = "Application is out of service";
-            } else {
-                message = "Application health status: " + statusValue;
+                return new ComponentHealthResponse(
+                        "Application",
+                        "UP",
+                        "Application is accepting traffic",
+                        responseTime
+                );
             }
 
             return new ComponentHealthResponse(
                     "Application",
-                    statusValue,
-                    message,
+                    "OUT_OF_SERVICE",
+                    "Application is not accepting traffic",
                     responseTime
             );
 
         } catch (Exception exception) {
 
+            log.error("Application readiness check failed", exception);
+
             return new ComponentHealthResponse(
                     "Application",
                     "DOWN",
-                    "Application health check failed",
+                    "Application readiness check failed",
                     TimeUnit.NANOSECONDS.toMillis(
                             System.nanoTime() - startTime
                     )
@@ -126,15 +124,19 @@ public class SystemHealthService {
 
         long startTime = System.nanoTime();
 
-        try (Connection connection =
-                     dataSource.getConnection()) {
+        try (Connection connection = dataSource.getConnection()) {
 
             boolean connected = connection.isValid(3);
 
-            long responseTime =
-                    TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - startTime
-                    );
+            long responseTime = TimeUnit.NANOSECONDS.toMillis(
+                    System.nanoTime() - startTime
+            );
+
+            log.info(
+                    "DATABASE HEALTH | Connected: {} | Response: {} ms",
+                    connected,
+                    responseTime
+            );
 
             if (connected) {
 
@@ -155,10 +157,11 @@ public class SystemHealthService {
 
         } catch (SQLException exception) {
 
-            long responseTime =
-                    TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - startTime
-                    );
+            long responseTime = TimeUnit.NANOSECONDS.toMillis(
+                    System.nanoTime() - startTime
+            );
+
+            log.error("PostgreSQL health check failed", exception);
 
             return new ComponentHealthResponse(
                     "PostgreSQL",
@@ -225,9 +228,7 @@ public class SystemHealthService {
                 memoryBean.getNonHeapMemoryUsage();
 
         long heapUsed = heapMemory.getUsed();
-
         long heapMax = heapMemory.getMax();
-
         long nonHeapUsed = nonHeapMemory.getUsed();
 
         // THREAD COUNT
@@ -235,8 +236,7 @@ public class SystemHealthService {
         ThreadMXBean threadBean =
                 ManagementFactory.getThreadMXBean();
 
-        int threadCount =
-                threadBean.getThreadCount();
+        int threadCount = threadBean.getThreadCount();
 
         // APPLICATION UPTIME
 
@@ -247,11 +247,8 @@ public class SystemHealthService {
 
         // CPU METRICS
 
-        double systemCpuUsage =
-                getSystemCpuUsage();
-
-        double processCpuUsage =
-                getProcessCpuUsage();
+        double systemCpuUsage = getSystemCpuUsage();
+        double processCpuUsage = getProcessCpuUsage();
 
         // FILESYSTEM METRICS
 
@@ -326,8 +323,7 @@ public class SystemHealthService {
 
     private List<FileSystemResponse> collectFileSystemMetrics() {
 
-        List<FileSystemResponse> filesystems =
-                new ArrayList<>();
+        List<FileSystemResponse> filesystems = new ArrayList<>();
 
         File[] roots = File.listRoots();
 
@@ -338,23 +334,18 @@ public class SystemHealthService {
         for (File root : roots) {
 
             long totalSpace = root.getTotalSpace();
-
             long freeSpace = root.getFreeSpace();
-
             long usableSpace = root.getUsableSpace();
 
             double usagePercentage = -1.0;
 
             if (totalSpace > 0) {
 
-                long usedSpace =
-                        totalSpace - freeSpace;
+                long usedSpace = totalSpace - freeSpace;
 
-                usagePercentage =
-                        Math.round(
-                                (usedSpace * 100.0) / totalSpace
-                                        * 100.0
-                        ) / 100.0;
+                usagePercentage = Math.round(
+                        (usedSpace * 100.0) / totalSpace * 100.0
+                ) / 100.0;
             }
 
             filesystems.add(
