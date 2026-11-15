@@ -1,9 +1,13 @@
+
 package com.authsphere.authsphere_backend.core.config;
 
 import com.authsphere.authsphere_backend.identity.auth.security.JwtAuthenticationEntryPoint;
 import com.authsphere.authsphere_backend.identity.auth.security.JwtAuthenticationFilter;
+
 import jakarta.servlet.DispatcherType;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -15,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -49,9 +54,22 @@ public class SecurityConfig {
     ) throws Exception {
 
         return http
+
+                // =================================================
+                // CSRF CONFIGURATION
+                // =================================================
+
                 .csrf(csrf -> csrf.disable())
 
+                // =================================================
+                // CORS CONFIGURATION
+                // =================================================
+
                 .cors(Customizer.withDefaults())
+
+                // =================================================
+                // AUTHENTICATION ENTRY POINT
+                // =================================================
 
                 .exceptionHandling(exception ->
                         exception.authenticationEntryPoint(
@@ -59,16 +77,23 @@ public class SecurityConfig {
                         )
                 )
 
+                // =================================================
+                // SESSION MANAGEMENT
+                // =================================================
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
                         )
                 )
 
+                // =================================================
+                // AUTHORIZATION RULES
+                // =================================================
+
                 .authorizeHttpRequests(auth -> auth
 
-                        // Allow Spring's error dispatch to reach
-                        // the application's error handler.
+                        // Allow Spring error dispatch
                         .dispatcherTypeMatchers(
                                 DispatcherType.ERROR
                         ).permitAll()
@@ -96,9 +121,9 @@ public class SecurityConfig {
                                 "/api/auth/mfa/verify-login"
                         ).permitAll()
 
-
+                        // =================================================
                         // RBAC MANAGEMENT — SUPER ADMIN ONLY
-
+                        // =================================================
 
                         .requestMatchers(
                                 "/api/roles/**",
@@ -107,7 +132,16 @@ public class SecurityConfig {
                         ).hasRole("SUPER_ADMIN")
 
                         // =================================================
-                        // SUPER ADMIN MANAGEMENT
+                        // SYSTEM HEALTH — SUPER ADMIN ONLY
+                        // =================================================
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/superadmin/system-health"
+                        ).hasRole("SUPER_ADMIN")
+
+                        // =================================================
+                        // SUPER ADMIN MANAGEMENT — SUPER ADMIN ONLY
                         // =================================================
 
                         .requestMatchers(
@@ -141,6 +175,10 @@ public class SecurityConfig {
 
                         .anyRequest().authenticated()
                 )
+
+                // =================================================
+                // JWT AUTHENTICATION FILTER
+                // =================================================
 
                 .addFilterBefore(
                         jwtAuthenticationFilter,

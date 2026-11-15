@@ -9,7 +9,6 @@ import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
 import com.authsphere.authsphere_backend.identity.company.CompanyAccessService;
-import com.authsphere.authsphere_backend.identity.company.CompanyStatus;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,6 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -46,6 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
+        String requestUri = request.getRequestURI();
         String authHeader = request.getHeader("Authorization");
 
         // =====================================================
@@ -67,9 +69,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             String username = jwtService.extractUsername(jwt);
 
-            if (username == null ||
-                    SecurityContextHolder.getContext().getAuthentication() != null) {
+            if (username == null) {
+                log.warn("JWT username is missing for endpoint: {}", requestUri);
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
 
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -82,6 +89,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     userRepository.findByEmail(username);
 
             if (optionalUser.isEmpty()) {
+                log.warn("JWT user not found for endpoint: {}", requestUri);
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
                 return;
@@ -96,14 +104,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (user.isDeleted()
                     || user.getAccountStatus() != AccountStatus.ACTIVE) {
 
+                log.warn("JWT account validation failed for endpoint: {}", requestUri);
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
                 return;
             }
+
+            // =================================================
             // VALIDATE COMPANY STATUS
+            // =================================================
+
             try {
                 companyAccessService.validateCompanyAccess(user);
+
             } catch (IllegalStateException exception) {
+
+                log.warn(
+                        "Company access validation failed for endpoint: {}. Reason: {}",
+                        requestUri,
+                        exception.getMessage()
+                );
 
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
@@ -115,6 +135,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // =================================================
 
             if (!jwtService.isTokenValid(jwt, user)) {
+
+                log.warn("JWT token validation failed for endpoint: {}", requestUri);
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
                 return;
@@ -127,6 +149,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UUID sessionId = jwtService.extractSessionId(jwt);
 
             if (sessionId == null) {
+
+                log.warn("JWT session ID is missing for endpoint: {}", requestUri);
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
                 return;
@@ -143,6 +167,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // =================================================
 
             if (session == null || !sessionService.isSessionActive(session)) {
+
+                log.warn("JWT session is invalid or inactive for endpoint: {}", requestUri);
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
                 return;
@@ -179,11 +205,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext()
                     .setAuthentication(authenticationToken);
 
-        } catch (Exception e) {
+            log.debug(
+                    "JWT authentication successful for endpoint: {} with {} authorities",
+                    requestUri,
+                    authorities.size()
+            );
 
-            // Reject authentication if JWT processing fails.
+        } catch (Exception exception) {
+
+            log.error(
+                    "JWT authentication failed while processing endpoint: {}",
+                    requestUri,
+                    exception
+            );
+
             SecurityContextHolder.clearContext();
-
         }
 
         // =====================================================
