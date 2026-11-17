@@ -27,19 +27,8 @@ public class UserRoleService {
 
     public User assignRole(UUID userId, UUID roleId) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "User not found: " + userId
-                        )
-                );
-
-        Role role = roleRepository.findById(roleId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Role not found: " + roleId
-                        )
-                );
+        User user = getActiveUser(userId);
+        Role role = getRole(roleId);
 
         validateGenericRoleAssignment(role);
 
@@ -48,9 +37,11 @@ public class UserRoleService {
                         existingRole.getId().equals(role.getId())
                 );
 
-        if (!alreadyAssigned) {
-            user.getRoles().add(role);
+        if (alreadyAssigned) {
+            return user;
         }
+
+        user.getRoles().add(role);
 
         return userRepository.save(user);
     }
@@ -61,19 +52,8 @@ public class UserRoleService {
 
     public User removeRole(UUID userId, UUID roleId) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "User not found: " + userId
-                        )
-                );
-
-        Role role = roleRepository.findById(roleId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Role not found: " + roleId
-                        )
-                );
+        User user = getActiveUser(userId);
+        Role role = getRole(roleId);
 
         validateGenericRoleAssignment(role);
 
@@ -89,7 +69,8 @@ public class UserRoleService {
         }
 
         user.getRoles().removeIf(
-                existingRole -> existingRole.getId().equals(role.getId())
+                existingRole ->
+                        existingRole.getId().equals(role.getId())
         );
 
         return userRepository.save(user);
@@ -102,10 +83,41 @@ public class UserRoleService {
     @Transactional(readOnly = true)
     public User getUserWithRoles(UUID userId) {
 
-        return userRepository.findById(userId)
+        return getActiveUser(userId);
+    }
+
+    // =========================================================
+    // GET ACTIVE USER
+    // =========================================================
+
+    private User getActiveUser(UUID userId) {
+
+        User user = userRepository.findById(userId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "User not found: " + userId
+                        )
+                );
+
+        if (user.isDeleted()) {
+            throw new ResourceNotFoundException(
+                    "User not found: " + userId
+            );
+        }
+
+        return user;
+    }
+
+    // =========================================================
+    // GET ROLE
+    // =========================================================
+
+    private Role getRole(UUID roleId) {
+
+        return roleRepository.findById(roleId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Role not found: " + roleId
                         )
                 );
     }

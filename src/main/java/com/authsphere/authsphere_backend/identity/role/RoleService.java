@@ -1,3 +1,4 @@
+
 package com.authsphere.authsphere_backend.identity.role;
 
 import com.authsphere.authsphere_backend.core.exception.ResourceNotFoundException;
@@ -17,27 +18,29 @@ import java.util.UUID;
 @Transactional
 public class RoleService {
 
+    private static final String SUPER_ADMIN = "SUPER_ADMIN";
+    private static final String ADMIN = "ADMIN";
+    private static final String USER = "USER";
+
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
     private final UserRepository userRepository;
 
-    // =========================================================
     // CREATE ROLE
-    // =========================================================
 
-    public Role createRole(
-            String name,
-            String description
-    ) {
+    public Role createRole(String name, String description) {
 
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Role name is required"
-            );
+            throw new IllegalArgumentException("Role name is required.");
         }
 
-        String normalizedName =
-                name.trim().toUpperCase(Locale.ROOT);
+        String normalizedName = name.trim().toUpperCase(Locale.ROOT);
+
+        if (isBuiltInRole(normalizedName)) {
+            throw new IllegalArgumentException(
+                    "Built-in role names are reserved."
+            );
+        }
 
         if (roleRepository.existsByName(normalizedName)) {
             throw new IllegalArgumentException(
@@ -53,21 +56,14 @@ public class RoleService {
         return roleRepository.save(role);
     }
 
-
-    // =========================================================
     // GET ALL ROLES
-    // =========================================================
 
     @Transactional(readOnly = true)
     public List<Role> getAllRoles() {
-
         return roleRepository.findAll();
     }
 
-
-    // =========================================================
     // GET ROLE
-    // =========================================================
 
     @Transactional(readOnly = true)
     public Role getRole(UUID roleId) {
@@ -80,48 +76,34 @@ public class RoleService {
                 );
     }
 
-
-    // =========================================================
     // DELETE ROLE
-    // =========================================================
 
     public void deleteRole(UUID roleId) {
 
         Role role = getRole(roleId);
 
-        if ("SUPER_ADMIN".equals(role.getName())) {
+        if (isBuiltInRole(role.getName())) {
             throw new IllegalArgumentException(
-                    "The SUPER_ADMIN role cannot be deleted."
-            );
-        }
-
-        if ("ADMIN".equals(role.getName())) {
-            throw new IllegalArgumentException(
-                    "The built-in ADMIN role cannot be deleted."
-            );
-        }
-
-        if ("USER".equals(role.getName())) {
-            throw new IllegalArgumentException(
-                    "The built-in USER role cannot be deleted."
+                    "Built-in roles cannot be deleted."
             );
         }
 
         if (userRepository.existsByRolesContaining(role)) {
             throw new IllegalArgumentException(
-                    "Cannot delete a role that is assigned to users."
+                    "Cannot delete a role assigned to users."
             );
         }
 
         roleRepository.delete(role);
     }
 
-
-
+    // ADD PERMISSION
 
     public Role addPermission(UUID roleId, UUID permissionId) {
 
         Role role = getRole(roleId);
+
+        validateCustomRole(role);
 
         Permission permission = permissionRepository.findById(permissionId)
                 .orElseThrow(() ->
@@ -129,6 +111,12 @@ public class RoleService {
                                 "Permission not found: " + permissionId
                         )
                 );
+
+        if (permission.isDeleted()) {
+            throw new IllegalArgumentException(
+                    "Cannot assign a deleted permission."
+            );
+        }
 
         boolean alreadyAssigned = role.getPermissions().stream()
                 .anyMatch(existing ->
@@ -142,20 +130,17 @@ public class RoleService {
         return roleRepository.save(role);
     }
 
+    // REMOVE PERMISSION
+
     public Role removePermission(UUID roleId, UUID permissionId) {
 
         Role role = getRole(roleId);
 
-        Permission permission = permissionRepository.findById(permissionId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Permission not found: " + permissionId
-                        )
-                );
+        validateCustomRole(role);
 
         boolean assigned = role.getPermissions().stream()
                 .anyMatch(existing ->
-                        existing.getId().equals(permission.getId())
+                        existing.getId().equals(permissionId)
                 );
 
         if (!assigned) {
@@ -165,10 +150,26 @@ public class RoleService {
         }
 
         role.getPermissions().removeIf(
-                existing -> existing.getId().equals(permission.getId())
+                existing -> existing.getId().equals(permissionId)
         );
 
         return roleRepository.save(role);
     }
 
+    // HELPER METHODS
+
+    private boolean isBuiltInRole(String roleName) {
+        return SUPER_ADMIN.equals(roleName)
+                || ADMIN.equals(roleName)
+                || USER.equals(roleName);
+    }
+
+    private void validateCustomRole(Role role) {
+
+        if (isBuiltInRole(role.getName())) {
+            throw new IllegalArgumentException(
+                    "Permissions of built-in roles cannot be modified."
+            );
+        }
+    }
 }

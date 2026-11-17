@@ -1,13 +1,16 @@
+
 package com.authsphere.authsphere_backend.identity.permission;
 
 import com.authsphere.authsphere_backend.identity.permission.dto.CreatePermissionRequest;
+import com.authsphere.authsphere_backend.identity.permission.dto.PermissionResponse;
+import com.authsphere.authsphere_backend.identity.permission.mapper.PermissionMapper;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -19,72 +22,63 @@ import java.util.UUID;
 public class PermissionController {
 
     private final PermissionService permissionService;
+    private final PermissionMapper permissionMapper;
 
-    // =========================================================
     // CREATE PERMISSION
-    // =========================================================
 
     @PreAuthorize("hasAuthority('PERMISSION_CREATE')")
     @PostMapping
-    public ResponseEntity<Permission> createPermission(
+    public ResponseEntity<PermissionResponse> createPermission(
             @Valid @RequestBody CreatePermissionRequest request
     ) {
-
-        Permission permission =
-                permissionService.createPermission(
-                        request.name(),
-                        request.description()
-                );
+        Permission permission = permissionService.createPermission(
+                request.name(),
+                request.description()
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(permission);
+                .body(permissionMapper.toResponse(permission));
     }
 
-
-    // =========================================================
     // GET ALL PERMISSIONS
-    // =========================================================
 
     @PreAuthorize("hasAuthority('PERMISSION_READ')")
     @GetMapping
-    public ResponseEntity<List<Permission>> getAllPermissions() {
+    public ResponseEntity<List<PermissionResponse>> getAllPermissions() {
 
-        return ResponseEntity.ok(
+        List<PermissionResponse> response =
                 permissionService.getAllPermissions()
-        );
+                        .stream()
+                        .map(permissionMapper::toResponse)
+                        .toList();
+
+        return ResponseEntity.ok(response);
     }
 
-
-    // =========================================================
-    // GET PERMISSION
-    // =========================================================
+    // GET PERMISSION BY ID
 
     @PreAuthorize("hasAuthority('PERMISSION_READ')")
     @GetMapping("/{permissionId}")
-    public ResponseEntity<Permission> getPermission(
+    public ResponseEntity<PermissionResponse> getPermission(
             @PathVariable UUID permissionId
     ) {
+        Permission permission =
+                permissionService.getPermission(permissionId);
 
         return ResponseEntity.ok(
-                permissionService.getPermission(permissionId)
+                permissionMapper.toResponse(permission)
         );
     }
 
-
-    // =========================================================
     // DELETE PERMISSION
-    // =========================================================
 
     @PreAuthorize("hasAuthority('PERMISSION_DELETE')")
     @DeleteMapping("/{permissionId}")
     public ResponseEntity<Void> deletePermission(
             @PathVariable UUID permissionId
     ) {
-
-        permissionService.deletePermission(
-                permissionId
-        );
+        permissionService.deletePermission(permissionId);
 
         return ResponseEntity.noContent().build();
     }

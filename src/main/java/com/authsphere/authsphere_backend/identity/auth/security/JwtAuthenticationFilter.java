@@ -160,7 +160,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // FIND SESSION
             // =================================================
 
-            Session session = sessionService.getSession(sessionId);
+            Session session = sessionService.getSession(sessionId, user);
 
             // =================================================
             // VALIDATE SESSION

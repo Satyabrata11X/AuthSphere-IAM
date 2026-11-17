@@ -134,4 +134,11 @@ public class SessionService {
             revokeAllSessions(user);
         }
     }
+
+
+    public Session getSession(UUID sessionId, User user) {
+
+        return sessionRepository.findByIdAndUser(sessionId, user)
+                .orElse(null);
+    }
 }

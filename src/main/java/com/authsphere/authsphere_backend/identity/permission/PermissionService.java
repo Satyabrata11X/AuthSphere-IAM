@@ -1,3 +1,4 @@
+
 package com.authsphere.authsphere_backend.identity.permission;
 
 import com.authsphere.authsphere_backend.core.exception.ResourceNotFoundException;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -15,12 +17,9 @@ import java.util.UUID;
 public class PermissionService {
 
     private final PermissionRepository permissionRepository;
-
     private final RoleRepository roleRepository;
 
-    // =========================================================
     // CREATE PERMISSION
-    // =========================================================
 
     public Permission createPermission(
             String name,
@@ -29,33 +28,28 @@ public class PermissionService {
 
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(
-                    "Permission name is required"
+                    "Permission name is required."
             );
         }
 
         String normalizedName =
-                name.trim().toUpperCase();
+                name.trim().toUpperCase(Locale.ROOT);
 
         if (permissionRepository.existsByName(normalizedName)) {
             throw new IllegalArgumentException(
-                    "Permission already exists: "
-                            + normalizedName
+                    "Permission already exists: " + normalizedName
             );
         }
 
-        Permission permission =
-                Permission.builder()
-                        .name(normalizedName)
-                        .description(description)
-                        .build();
+        Permission permission = Permission.builder()
+                .name(normalizedName)
+                .description(description)
+                .build();
 
         return permissionRepository.save(permission);
     }
 
-
-    // =========================================================
     // GET ALL PERMISSIONS
-    // =========================================================
 
     @Transactional(readOnly = true)
     public List<Permission> getAllPermissions() {
@@ -63,11 +57,7 @@ public class PermissionService {
         return permissionRepository.findAll();
     }
 
-
-    // =========================================================
-    // GET PERMISSION
-    // =========================================================
-
+    // GET PERMISSION BY ID
 
     @Transactional(readOnly = true)
     public Permission getPermission(UUID permissionId) {
@@ -80,11 +70,7 @@ public class PermissionService {
                 );
     }
 
-
-
-    // =========================================================
     // DELETE PERMISSION
-    // =========================================================
 
     public void deletePermission(UUID permissionId) {
 
