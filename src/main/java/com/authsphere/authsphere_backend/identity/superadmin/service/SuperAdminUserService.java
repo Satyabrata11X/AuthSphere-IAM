@@ -20,9 +20,9 @@ public interface SuperAdminUserService {
 
     SuperAdminUserDetailsResponse getUserDetails(UUID userId);
 
-    void suspendUser(UUID userId, UUID superAdminId);
+    void suspendUser(UUID userId, UUID superAdminId, String ipAddress);
 
-    void activateUser(UUID userId, UUID superAdminId);
+    void activateUser(UUID userId, UUID superAdminId, String ipAddress);
 
-    void deleteUser(UUID userId, UUID superAdminId);
+    void deleteUser(UUID userId, UUID superAdminId, String ipAddress);
 }

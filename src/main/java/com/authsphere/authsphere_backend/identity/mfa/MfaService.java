@@ -17,7 +17,6 @@ import com.authsphere.authsphere_backend.identity.user.UserRepository;
 import com.authsphere.authsphere_backend.identity.company.CompanyAccessService;
 import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 
-
 import dev.samstevens.totp.qr.QrData;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +41,6 @@ public class MfaService {
     private final SecurityEventService securityEventService;
     private final AccountLockoutService accountLockoutService;
     private final CompanyAccessService companyAccessService;
-
 
     private static final String ISSUER = "AuthSphere";
 
@@ -213,9 +211,10 @@ public class MfaService {
 
             accountLockoutService.recordFailedLogin(user, ipAddress);
 
+            // Record MFA failure
             securityEventService.recordEvent(
                     user,
-                    SecurityEventType.LOGIN_FAILED,
+                    SecurityEventType.MFA_FAILED,
                     false,
                     ipAddress,
                     "Invalid MFA verification code"
@@ -247,9 +246,11 @@ public class MfaService {
             );
         }
 
-// 10. Validate company status
+        // 10. Validate company status
         try {
+
             companyAccessService.validateCompanyAccess(user);
+
         } catch (IllegalStateException exception) {
 
             mfaChallengeService.removeChallenge(challengeToken);
@@ -259,12 +260,12 @@ public class MfaService {
             );
         }
 
-        // 9. Calculate session expiration
+        // 11. Calculate session expiration
         LocalDateTime sessionExpiresAt =
                 LocalDateTime.now()
                         .plus(Duration.ofMillis(jwtExpiration));
 
-        // 10. Create authenticated session
+        // 12. Create authenticated session
         Session session = sessionService.createSession(
                 user,
                 ipAddress,
@@ -272,20 +273,29 @@ public class MfaService {
                 sessionExpiresAt
         );
 
-        // 11. Generate real JWT
+        // 13. Generate real JWT
         String accessToken = jwtService.generateToken(
                 user,
                 session.getId()
         );
 
-        // 12. Record successful MFA login attempt
+        // 14. Record successful MFA login attempt
         loginAttemptService.recordAttempt(
                 user,
                 true,
                 ipAddress
         );
 
-        // 13. Record successful security event
+        // 15. Record successful MFA verification
+        securityEventService.recordEvent(
+                user,
+                SecurityEventType.MFA_SUCCESS,
+                true,
+                ipAddress,
+                "MFA verification successful"
+        );
+
+        // 16. Record complete login success
         securityEventService.recordEvent(
                 user,
                 SecurityEventType.LOGIN_SUCCESS,
@@ -294,13 +304,13 @@ public class MfaService {
                 "User logged in successfully using MFA"
         );
 
-        // 14. Reset lockout after complete authentication
+        // 17. Reset lockout after complete authentication
         accountLockoutService.recordSuccessfulLogin(user);
 
-        // 15. Invalidate temporary MFA challenge
+        // 18. Invalidate temporary MFA challenge
         mfaChallengeService.removeChallenge(challengeToken);
 
-        // 16. Return access token
+        // 19. Return access token
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .build();

@@ -1,12 +1,22 @@
+
 package com.authsphere.authsphere_backend.identity.auth.security;
 
 public enum SecurityEventType {
 
+    // Authentication events
     LOGIN_SUCCESS,
-
     LOGIN_FAILED,
 
-    ACCOUNT_LOCKED,
+    // MFA events
+    MFA_SUCCESS,
+    MFA_FAILED,
 
-    ACCOUNT_UNLOCKED
+    // Account security events
+    ACCOUNT_LOCKED,
+    ACCOUNT_UNLOCKED,
+
+    // Administrative audit events
+    USER_SUSPENDED,
+    USER_ACTIVATED,
+    USER_DELETED
 }

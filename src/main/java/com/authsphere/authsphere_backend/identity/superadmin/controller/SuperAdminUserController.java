@@ -2,18 +2,22 @@
 package com.authsphere.authsphere_backend.identity.superadmin.controller;
 
 import com.authsphere.authsphere_backend.core.common.PageResponse;
+
 import com.authsphere.authsphere_backend.identity.superadmin.dto.user.SuperAdminUserDetailsResponse;
 import com.authsphere.authsphere_backend.identity.superadmin.dto.user.SuperAdminUserResponse;
 import com.authsphere.authsphere_backend.identity.superadmin.service.SuperAdminUserService;
+
 import com.authsphere.authsphere_backend.identity.user.User;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.UUID;
 
@@ -24,7 +28,6 @@ import java.util.UUID;
 public class SuperAdminUserController {
 
     private final SuperAdminUserService superAdminUserService;
-
 
     // =========================================================
     // GET ALL USERS WITH SEARCH, FILTERING AND PAGINATION
@@ -61,7 +64,6 @@ public class SuperAdminUserController {
         );
     }
 
-
     // =========================================================
     // GET INDIVIDUAL USER DETAILS
     // =========================================================
@@ -76,58 +78,79 @@ public class SuperAdminUserController {
         );
     }
 
-
     // =========================================================
-// SUSPEND USER
-// =========================================================
+    // SUSPEND USER
+    // =========================================================
 
     @PatchMapping("/{userId}/suspend")
     public ResponseEntity<Void> suspendUser(
+
             @PathVariable UUID userId,
-            @AuthenticationPrincipal User superAdmin
+
+            @AuthenticationPrincipal User superAdmin,
+
+            HttpServletRequest request
+
     ) {
+
+        String ipAddress = request.getRemoteAddr();
 
         superAdminUserService.suspendUser(
                 userId,
-                superAdmin.getId()
+                superAdmin.getId(),
+                ipAddress
         );
 
         return ResponseEntity.noContent().build();
     }
 
-
-// =========================================================
-// ACTIVATE USER
-// =========================================================
+    // =========================================================
+    // ACTIVATE USER
+    // =========================================================
 
     @PatchMapping("/{userId}/activate")
     public ResponseEntity<Void> activateUser(
+
             @PathVariable UUID userId,
-            @AuthenticationPrincipal User superAdmin
+
+            @AuthenticationPrincipal User superAdmin,
+
+            HttpServletRequest request
+
     ) {
+
+        String ipAddress = request.getRemoteAddr();
 
         superAdminUserService.activateUser(
                 userId,
-                superAdmin.getId()
+                superAdmin.getId(),
+                ipAddress
         );
 
         return ResponseEntity.noContent().build();
     }
 
-
-// =========================================================
-// SOFT DELETE USER
-// =========================================================
+    // =========================================================
+    // SOFT DELETE USER
+    // =========================================================
 
     @DeleteMapping("/{userId}")
     public ResponseEntity<Void> deleteUser(
+
             @PathVariable UUID userId,
-            @AuthenticationPrincipal User superAdmin
+
+            @AuthenticationPrincipal User superAdmin,
+
+            HttpServletRequest request
+
     ) {
+
+        String ipAddress = request.getRemoteAddr();
 
         superAdminUserService.deleteUser(
                 userId,
-                superAdmin.getId()
+                superAdmin.getId(),
+                ipAddress
         );
 
         return ResponseEntity.noContent().build();

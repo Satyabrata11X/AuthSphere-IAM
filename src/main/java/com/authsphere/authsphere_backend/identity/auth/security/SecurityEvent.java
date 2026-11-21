@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "security_events")
@@ -35,4 +36,16 @@ public class SecurityEvent extends BaseEntity {
 
     @Column(length = 1000)
     private String details;
+
+    // Administrator who performed the action
+    @Column(name = "actor_id")
+    private UUID actorId;
+
+    // Type of affected resource
+    @Column(name = "target_type", length = 50)
+    private String targetType;
+
+    // ID of affected resource
+    @Column(name = "target_id")
+    private UUID targetId;
 }

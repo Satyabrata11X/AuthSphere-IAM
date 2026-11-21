@@ -2,14 +2,20 @@
 package com.authsphere.authsphere_backend.identity.superadmin.service.impl;
 
 import com.authsphere.authsphere_backend.core.common.PageResponse;
+import com.authsphere.authsphere_backend.core.exception.BusinessConflictException;
+
+import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventService;
+import com.authsphere.authsphere_backend.identity.auth.security.SecurityEventType;
+
+import com.authsphere.authsphere_backend.identity.session.SessionService;
+
 import com.authsphere.authsphere_backend.identity.superadmin.dto.user.SuperAdminUserDetailsResponse;
 import com.authsphere.authsphere_backend.identity.superadmin.dto.user.SuperAdminUserResponse;
 import com.authsphere.authsphere_backend.identity.superadmin.service.SuperAdminUserService;
+
 import com.authsphere.authsphere_backend.identity.user.AccountStatus;
 import com.authsphere.authsphere_backend.identity.user.User;
 import com.authsphere.authsphere_backend.identity.user.UserRepository;
-import com.authsphere.authsphere_backend.identity.session.SessionService;
-import com.authsphere.authsphere_backend.core.exception.BusinessConflictException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,6 +37,7 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
 
     private final UserRepository userRepository;
     private final SessionService sessionService;
+    private final SecurityEventService securityEventService;
 
     // =========================================================
     // GET USERS WITH SEARCH, FILTERING AND PAGINATION
@@ -57,7 +64,6 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
             );
         }
 
-        // Use an empty string instead of null for search.
         String normalizedSearch =
                 (search == null || search.isBlank())
                         ? ""
@@ -204,30 +210,42 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
 
     @Override
     @Transactional
-    public void suspendUser(UUID userId, UUID superAdminId) {
+    public void suspendUser(
+            UUID userId,
+            UUID superAdminId,
+            String ipAddress
+    ) {
 
         User user = findUserForManagement(userId);
 
         preventSuperAdminModification(user, superAdminId);
 
         if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
-            throw new 	BusinessConflictException(
+            throw new BusinessConflictException(
                     "User is already suspended."
             );
         }
 
         if (user.getAccountStatus() != AccountStatus.ACTIVE) {
-            throw new 	BusinessConflictException(
+            throw new BusinessConflictException(
                     "Only active users can be suspended."
             );
         }
 
-        user.setAccountStatus(AccountStatus.SUSPENDED);
+        User actor = findActor(superAdminId);
 
+        user.setAccountStatus(AccountStatus.SUSPENDED);
         userRepository.save(user);
 
-        // Revoke all active sessions.
         sessionService.revokeAllSessions(user);
+
+        securityEventService.recordAdminEvent(
+                actor,
+                user,
+                SecurityEventType.USER_SUSPENDED,
+                ipAddress,
+                "SuperAdmin suspended user: " + user.getEmail()
+        );
     }
 
     // =========================================================
@@ -236,21 +254,34 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
 
     @Override
     @Transactional
-    public void activateUser(UUID userId, UUID superAdminId) {
+    public void activateUser(
+            UUID userId,
+            UUID superAdminId,
+            String ipAddress
+    ) {
 
         User user = findUserForManagement(userId);
 
         preventSuperAdminModification(user, superAdminId);
 
         if (user.getAccountStatus() != AccountStatus.SUSPENDED) {
-            throw new 	BusinessConflictException(
+            throw new BusinessConflictException(
                     "Only suspended users can be activated."
             );
         }
 
-        user.setAccountStatus(AccountStatus.ACTIVE);
+        User actor = findActor(superAdminId);
 
+        user.setAccountStatus(AccountStatus.ACTIVE);
         userRepository.save(user);
+
+        securityEventService.recordAdminEvent(
+                actor,
+                user,
+                SecurityEventType.USER_ACTIVATED,
+                ipAddress,
+                "SuperAdmin activated user: " + user.getEmail()
+        );
     }
 
     // =========================================================
@@ -259,11 +290,17 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
 
     @Override
     @Transactional
-    public void deleteUser(UUID userId, UUID superAdminId) {
+    public void deleteUser(
+            UUID userId,
+            UUID superAdminId,
+            String ipAddress
+    ) {
 
         User user = findUserForManagement(userId);
 
         preventSuperAdminModification(user, superAdminId);
+
+        User actor = findActor(superAdminId);
 
         user.setDeleted(true);
         user.setDeletedAt(LocalDateTime.now());
@@ -271,8 +308,15 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
 
         userRepository.save(user);
 
-        // Revoke all active sessions.
         sessionService.revokeAllSessions(user);
+
+        securityEventService.recordAdminEvent(
+                actor,
+                user,
+                SecurityEventType.USER_DELETED,
+                ipAddress,
+                "SuperAdmin deleted user: " + user.getEmail()
+        );
     }
 
     // =========================================================
@@ -288,6 +332,18 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
     }
 
     // =========================================================
+    // FIND AUTHENTICATED SUPERADMIN
+    // =========================================================
+
+    private User findActor(UUID superAdminId) {
+
+        return userRepository.findById(superAdminId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("SuperAdmin not found.")
+                );
+    }
+
+    // =========================================================
     // PREVENT SUPERADMIN MODIFICATION
     // =========================================================
 
@@ -297,7 +353,7 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
     ) {
 
         if (targetUser.getId().equals(superAdminId)) {
-            throw new 	BusinessConflictException(
+            throw new BusinessConflictException(
                     "You cannot modify your own SuperAdmin account."
             );
         }
@@ -309,7 +365,7 @@ public class SuperAdminUserServiceImpl implements SuperAdminUserService {
                 );
 
         if (isSuperAdmin) {
-            throw new 	BusinessConflictException(
+            throw new BusinessConflictException(
                     "SuperAdmin accounts cannot be modified through this operation."
             );
         }

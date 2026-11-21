@@ -32,4 +32,29 @@ public class SecurityEventService {
 
         securityEventRepository.save(securityEvent);
     }
+
+
+    public void recordAdminEvent(
+            User actor,
+            User target,
+            SecurityEventType eventType,
+            String ipAddress,
+            String details
+    ) {
+
+        SecurityEvent securityEvent =
+                SecurityEvent.builder()
+                        .user(target)
+                        .actorId(actor.getId())
+                        .targetType("USER")
+                        .targetId(target.getId())
+                        .eventType(eventType)
+                        .success(true)
+                        .ipAddress(ipAddress)
+                        .occurredAt(LocalDateTime.now())
+                        .details(details)
+                        .build();
+
+        securityEventRepository.save(securityEvent);
+    }
 }
