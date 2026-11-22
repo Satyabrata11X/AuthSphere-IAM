@@ -152,6 +152,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         User user = optionalUser.get();
 
+
         // 4. Check account lockout
         if (accountLockoutService.isAccountLocked(user)) {
             throw new InvalidCredentialsException(

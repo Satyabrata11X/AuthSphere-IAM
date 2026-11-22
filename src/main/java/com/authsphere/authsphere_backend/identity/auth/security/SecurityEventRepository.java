@@ -1,11 +1,14 @@
+
 package com.authsphere.authsphere_backend.identity.auth.security;
 
 import com.authsphere.authsphere_backend.identity.user.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -51,19 +54,40 @@ public interface SecurityEventRepository
             UUID companyId
     );
 
-    // =========================================================
-// SUPERADMIN RECENT PLATFORM ACTIVITY
-// =========================================================
-
+    /*
+     * SuperAdmin recent platform activity.
+     */
     @Query("""
-    SELECT e
-    FROM SecurityEvent e
-    JOIN FETCH e.user u
-    WHERE e.deleted = false
-      AND u.deleted = false
-    ORDER BY e.occurredAt DESC
-""")
+        SELECT e
+        FROM SecurityEvent e
+        JOIN FETCH e.user u
+        WHERE e.deleted = false
+          AND u.deleted = false
+        ORDER BY e.occurredAt DESC
+    """)
     Page<SecurityEvent> findDashboardRecentActivity(
+            Pageable pageable
+    );
+
+    /*
+     * SuperAdmin audit history with optional filters.
+     */
+    @Query("""
+        SELECT e
+        FROM SecurityEvent e
+        LEFT JOIN FETCH e.user
+        WHERE e.deleted = false
+          AND (:eventType IS NULL OR e.eventType = :eventType)
+          AND (:success IS NULL OR e.success = :success)
+          AND e.occurredAt >= COALESCE(:startDate, e.occurredAt)
+          AND e.occurredAt <= COALESCE(:endDate, e.occurredAt)
+        ORDER BY e.occurredAt DESC
+    """)
+    Page<SecurityEvent> findAuditLogs(
+            @Param("eventType") SecurityEventType eventType,
+            @Param("success") Boolean success,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
             Pageable pageable
     );
 }
